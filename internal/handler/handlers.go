@@ -1,62 +1,78 @@
 package handler
 
 import (
+	// "bytes"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
+	// "regexp"
 )
 
 var (
 	ShortenerArray = make(map[string]string)
 )
 
-// функция run будет полезна при инициализации зависимостей сервера перед запуском
 func Run() error {
 	mux := http.NewServeMux()
-	mux.HandleFunc(`/`, webhook1)
-	mux.HandleFunc(`/{id}`, webhook2)
+	mux.HandleFunc(`/`, createShortURL)
+	mux.HandleFunc(`/{id}`, getOriginalURL)
 
 	return http.ListenAndServe(":8080", mux)
 }
 
-// функция webhook1 — обработчик HTTP-запроса
-func webhook1(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		// разрешаем только POST-запросы
-		w.WriteHeader(http.StatusMethodNotAllowed)
+// createShortURL обрабатывает HTTP-запрос.
+func createShortURL(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	bodyBytes, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Не удалось прочитать тело запроса", http.StatusBadRequest)
+	bodyBytes, _ := io.ReadAll(req.Body)
+	if reflect.DeepEqual(bodyBytes, []byte{}) {
+		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
 
+	// TODO Подумать, как сделать
+	// bodyString := string(bodyBytes)
+	// pattern := `/^https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)$/`
+	// match, _ := regexp.MatchString(pattern, bodyString)
+
+	// if !match {
+	// 	http.Error(res, "Переданные данные не соответствуют структуре url-адреса", http.StatusBadRequest)
+	// 	return
+	// }
+
+	defer req.Body.Close()
+
+	// проверка на уже существование в БД
+	// дополниеть реализацией связи с БД
 	ShortenerArray["EwHXdJfB"] = string(bodyBytes)
 
-	// установим правильный заголовок для типа данных
-	w.WriteHeader(http.StatusCreated)
-	w.Header().Set("Content-Type", "text/plain")
-	// пока установим ответ-заглушку, без проверки ошибок
-	_, _ = w.Write([]byte("http://localhost:8080/EwHXdJfB"))
+	res.Header().Set("Content-Type", "text/plain")
+	res.WriteHeader(http.StatusCreated)
+	res.Write([]byte("http://localhost:8080/EwHXdJfB"))
 }
 
-// функция webhook2 — обработчик HTTP-запроса
-func webhook2(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		// разрешаем только Get-запросы
-		w.WriteHeader(http.StatusMethodNotAllowed)
+// getOriginalURL обрабатывает HTTP-запрос.
+func getOriginalURL(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	url := strings.Trim(r.URL.Path, "/")
-	urlOut, ok := ShortenerArray[url]
+	shortenerArray := make(map[string]string)
+	shortenerArray["EwHXdJfB"] = "https://practicum.yandex.ru/ "
+
+	url := strings.Trim(req.URL.Path, "/")
+	defer req.Body.Close()
+
+	headerLocation, ok := shortenerArray[url]
 	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
+		res.WriteHeader(http.StatusBadRequest)
+		return
 	}
-	w.WriteHeader(http.StatusTemporaryRedirect)
-	// пока установим ответ-заглушку, без проверки ошибок
-	_, _ = w.Write([]byte(urlOut))
+	res.WriteHeader(http.StatusTemporaryRedirect)
+	res.Header().Add("Location", headerLocation)
 }
