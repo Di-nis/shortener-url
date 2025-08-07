@@ -85,22 +85,44 @@ func Test_getOriginalURL(t *testing.T) {
 	tests := []struct {
 		name string
 		url  string
+		method string
 		want want
 	}{
 		{
-			name: "Test_getOriginalURL, запрос 1",
+			name: "Test_getOriginalURL, метод - Get, существующий в БД адрес",
 			url:  "EwHXdJfB",
+			method: http.MethodGet,
 			want: want{
-				code:        http.StatusCreated,
+				code:        http.StatusTemporaryRedirect,
 				response:    `https://practicum.yandex.ru/`,
 				contentType: "text/plain",
+			},
+		},
+		{
+			name: "Test_getOriginalURL, метод - Post, существующий в БД адрес",
+			url:  "EwHXdJfB",
+			method: http.MethodPost,
+			want: want{
+				code:        http.StatusMethodNotAllowed,
+				response:    "",
+				contentType: "",
+			},
+		},
+		{
+			name: "Test_getOriginalURL, метод - Post, адрес в БД не найден",
+			url:  "nvjkrhsfdvn",
+			method: http.MethodGet,
+			want: want{
+				code:        http.StatusNotFound,
+				response:    "",
+				contentType: "",
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			url := "/" + tt.url
-			request := httptest.NewRequest(http.MethodPost, url, nil)
+			request := httptest.NewRequest(tt.method, url, nil)
 
 			w := httptest.NewRecorder()
 			getOriginalURL(w, request)
@@ -108,7 +130,11 @@ func Test_getOriginalURL(t *testing.T) {
 			res := w.Result()
 			headerLocation := res.Header.Get("Location")
 			defer res.Body.Close()
+
 			assert.Equal(t, tt.want.response, string(headerLocation))
+			assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))
+			assert.Equal(t, tt.want.code, res.StatusCode)
+
 		})
 	}
 }

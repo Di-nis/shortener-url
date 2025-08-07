@@ -27,3 +27,6 @@ cmd/client/
 
 # Environment variables
 .env
+
+# Local database
+*.db

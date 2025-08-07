@@ -1,12 +1,11 @@
 package handler
 
 import (
-	// "bytes"
 	"io"
 	"net/http"
 	"reflect"
 	"strings"
-	// "regexp"
+	"github.com/go-chi/chi/v5"
 )
 
 var (
@@ -14,11 +13,12 @@ var (
 )
 
 func Run() error {
-	mux := http.NewServeMux()
-	mux.HandleFunc(`/`, createShortURL)
-	mux.HandleFunc(`/{id}`, getOriginalURL)
+	router := chi.NewRouter()
 
-	return http.ListenAndServe(":8080", mux)
+    router.Post("/", createShortURL)
+    router.Get("/{short_url}", getOriginalURL)
+
+    return http.ListenAndServe(":8080", router)
 }
 
 // createShortURL обрабатывает HTTP-запрос.
@@ -33,16 +33,6 @@ func createShortURL(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
 		return
 	}
-
-	// TODO Подумать, как сделать
-	// bodyString := string(bodyBytes)
-	// pattern := `/^https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)$/`
-	// match, _ := regexp.MatchString(pattern, bodyString)
-
-	// if !match {
-	// 	http.Error(res, "Переданные данные не соответствуют структуре url-адреса", http.StatusBadRequest)
-	// 	return
-	// }
 
 	defer req.Body.Close()
 
@@ -63,16 +53,17 @@ func getOriginalURL(res http.ResponseWriter, req *http.Request) {
 	}
 
 	shortenerArray := make(map[string]string)
-	shortenerArray["EwHXdJfB"] = "https://practicum.yandex.ru/ "
+	shortenerArray["EwHXdJfB"] = "https://practicum.yandex.ru/"
 
 	url := strings.Trim(req.URL.Path, "/")
 	defer req.Body.Close()
 
 	headerLocation, ok := shortenerArray[url]
 	if !ok {
-		res.WriteHeader(http.StatusBadRequest)
+		res.WriteHeader(http.StatusNotFound)
 		return
 	}
-	res.WriteHeader(http.StatusTemporaryRedirect)
 	res.Header().Add("Location", headerLocation)
+	res.Header().Set("Content-Type", "text/plain")
+	res.WriteHeader(http.StatusTemporaryRedirect)
 }
