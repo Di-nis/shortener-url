@@ -3,18 +3,22 @@ package handler
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"bytes"
-	"io"
 )
 
 func Test_createShortURL(t *testing.T) {
+	router := CreateRouter()
+	server := httptest.NewServer(router)
+
+	defer server.Close()
+
 	type want struct {
-		code        int
+		statusCode  int
 		response    string
 		contentType string
 	}
@@ -30,7 +34,7 @@ func Test_createShortURL(t *testing.T) {
 			body:   `https://practicum.yandex.ru/`,
 			method: http.MethodPost,
 			want: want{
-				code:        http.StatusCreated,
+				statusCode:  http.StatusCreated,
 				response:    `http://localhost:8080/EwHXdJfB`,
 				contentType: "text/plain",
 			},
@@ -40,7 +44,7 @@ func Test_createShortURL(t *testing.T) {
 			body:   `https://practicum.yandex.ru/`,
 			method: http.MethodGet,
 			want: want{
-				code:        http.StatusMethodNotAllowed,
+				statusCode:  http.StatusMethodNotAllowed,
 				response:    ``,
 				contentType: "",
 			},
@@ -50,48 +54,51 @@ func Test_createShortURL(t *testing.T) {
 			body:   ``,
 			method: http.MethodPost,
 			want: want{
-				code:        http.StatusBadRequest,
+				statusCode:  http.StatusBadRequest,
 				response:    "Не удалось прочитать тело запроса\n",
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
 	}
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			body := []byte(tt.body)
-			request := httptest.NewRequest(tt.method, "/", bytes.NewBuffer(body))
+		t.Run(tt.method, func(t *testing.T) {
+			req := resty.New().R()
+			req.Method = tt.method
+			req.URL = server.URL
+			req.Body = tt.body
 
-			w := httptest.NewRecorder()
-			createShortURL(w, request)
+			resp, err := req.Send()
 
-			res := w.Result()
-			defer res.Body.Close()
-
-			resBody, err := io.ReadAll(res.Body)
-
-			require.NoError(t, err)
-			assert.Equal(t, tt.want.response, string(resBody))
-			assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))
+			require.NoError(t, err, "error making HTTP request")
+			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
+			assert.Equal(t, tt.want.response, string(resp.Body()))
+			assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"))
 		})
 	}
 }
 
 func Test_getOriginalURL(t *testing.T) {
+	router := CreateRouter()
+	server := httptest.NewServer(router)
+
+	defer server.Close()
+
 	type want struct {
 		code        int
 		response    string
 		contentType string
 	}
 	tests := []struct {
-		name string
-		url  string
-		method string
-		want want
+		name     string
+		shortUrl string
+		method   string
+		want     want
 	}{
 		{
-			name: "Test_getOriginalURL, метод - Get, существующий в БД адрес",
-			url:  "EwHXdJfB",
-			method: http.MethodGet,
+			name:     "Test_getOriginalURL, метод - Get, адрес - существующий в БД адрес",
+			shortUrl: "EwHXdJfB",
+			method:   http.MethodGet,
 			want: want{
 				code:        http.StatusTemporaryRedirect,
 				response:    `https://practicum.yandex.ru/`,
@@ -99,9 +106,9 @@ func Test_getOriginalURL(t *testing.T) {
 			},
 		},
 		{
-			name: "Test_getOriginalURL, метод - Post, существующий в БД адрес",
-			url:  "EwHXdJfB",
-			method: http.MethodPost,
+			name:     "Test_getOriginalURL, метод - Post, адрес - существующий в БД адрес",
+			shortUrl: "EwHXdJfB",
+			method:   http.MethodPost,
 			want: want{
 				code:        http.StatusMethodNotAllowed,
 				response:    "",
@@ -109,9 +116,9 @@ func Test_getOriginalURL(t *testing.T) {
 			},
 		},
 		{
-			name: "Test_getOriginalURL, метод - Post, адрес в БД не найден",
-			url:  "nvjkrhsfdvn",
-			method: http.MethodGet,
+			name:     "Test_getOriginalURL, метод - Post, адрес в БД не найден",
+			shortUrl: "nvjkrhsfdvn",
+			method:   http.MethodGet,
 			want: want{
 				code:        http.StatusNotFound,
 				response:    "",
@@ -121,19 +128,18 @@ func Test_getOriginalURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			url := "/" + tt.url
-			request := httptest.NewRequest(tt.method, url, nil)
+			req := resty.New().SetRedirectPolicy(resty.NoRedirectPolicy()).R()
+			req.Method = tt.method
+			req.URL = server.URL + "/" + tt.shortUrl
 
-			w := httptest.NewRecorder()
-			getOriginalURL(w, request)
+			resp, err := req.Send()
+			if err != nil {
+				assert.True(t, strings.Contains(err.Error(), "auto redirect is disabled"))
+			}
 
-			res := w.Result()
-			headerLocation := res.Header.Get("Location")
-			defer res.Body.Close()
-
-			assert.Equal(t, tt.want.response, string(headerLocation))
-			assert.Equal(t, tt.want.contentType, res.Header.Get("Content-Type"))
-			assert.Equal(t, tt.want.code, res.StatusCode)
+			assert.Equal(t, tt.want.code, resp.StatusCode())
+			assert.Equal(t, tt.want.response, string(resp.Header().Get("Location")))
+			assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"))
 
 		})
 	}

@@ -1,24 +1,22 @@
 package handler
 
 import (
+	"github.com/go-chi/chi/v5"
 	"io"
 	"net/http"
 	"reflect"
-	"strings"
-	"github.com/go-chi/chi/v5"
 )
 
 var (
 	ShortenerArray = make(map[string]string)
 )
 
-func Run() error {
+func CreateRouter() http.Handler {
 	router := chi.NewRouter()
 
-    router.Post("/", createShortURL)
-    router.Get("/{short_url}", getOriginalURL)
-
-    return http.ListenAndServe(":8080", router)
+	router.Post("/", createShortURL)
+	router.Get("/{short_url}", getOriginalURL)
+	return router
 }
 
 // createShortURL обрабатывает HTTP-запрос.
@@ -55,10 +53,10 @@ func getOriginalURL(res http.ResponseWriter, req *http.Request) {
 	shortenerArray := make(map[string]string)
 	shortenerArray["EwHXdJfB"] = "https://practicum.yandex.ru/"
 
-	url := strings.Trim(req.URL.Path, "/")
+	shortURL := chi.URLParam(req, "short_url")
 	defer req.Body.Close()
 
-	headerLocation, ok := shortenerArray[url]
+	headerLocation, ok := shortenerArray[shortURL]
 	if !ok {
 		res.WriteHeader(http.StatusNotFound)
 		return
