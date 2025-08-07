@@ -91,13 +91,13 @@ func Test_getOriginalURL(t *testing.T) {
 	}
 	tests := []struct {
 		name     string
-		shortUrl string
+		shortURL string
 		method   string
 		want     want
 	}{
 		{
 			name:     "Test_getOriginalURL, метод - Get, адрес - существующий в БД адрес",
-			shortUrl: "EwHXdJfB",
+			shortURL: "EwHXdJfB",
 			method:   http.MethodGet,
 			want: want{
 				code:        http.StatusTemporaryRedirect,
@@ -107,7 +107,7 @@ func Test_getOriginalURL(t *testing.T) {
 		},
 		{
 			name:     "Test_getOriginalURL, метод - Post, адрес - существующий в БД адрес",
-			shortUrl: "EwHXdJfB",
+			shortURL: "EwHXdJfB",
 			method:   http.MethodPost,
 			want: want{
 				code:        http.StatusMethodNotAllowed,
@@ -117,7 +117,7 @@ func Test_getOriginalURL(t *testing.T) {
 		},
 		{
 			name:     "Test_getOriginalURL, метод - Post, адрес в БД не найден",
-			shortUrl: "nvjkrhsfdvn",
+			shortURL: "nvjkrhsfdvn",
 			method:   http.MethodGet,
 			want: want{
 				code:        http.StatusNotFound,
@@ -130,7 +130,7 @@ func Test_getOriginalURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := resty.New().SetRedirectPolicy(resty.NoRedirectPolicy()).R()
 			req.Method = tt.method
-			req.URL = server.URL + "/" + tt.shortUrl
+			req.URL = server.URL + "/" + tt.shortURL
 
 			resp, err := req.Send()
 			if err != nil {
