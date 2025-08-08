@@ -1,18 +1,30 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/Di-nis/shortener-url/internal/config"
+	"github.com/Di-nis/shortener-url/internal/repository"
+	"github.com/Di-nis/shortener-url/internal/service"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_createShortURL(t *testing.T) {
-	router := CreateRouter()
+	options := new(config.Options)
+	options.Parse()
+
+	repo := repository.NewRepo()
+	service := service.NewService(repo)
+	controller := NewСontroller(service, options)
+
+	router := controller.CreateRouter()
+
 	server := httptest.NewServer(router)
 
 	defer server.Close()
@@ -35,7 +47,7 @@ func Test_createShortURL(t *testing.T) {
 			method: http.MethodPost,
 			want: want{
 				statusCode:  http.StatusCreated,
-				response:    `http://localhost:8080/EwHXdJfB`,
+				response:    fmt.Sprintf("%s/EwHXdJfB", controller.Options.BaseURL),
 				contentType: "text/plain",
 			},
 		},
@@ -79,7 +91,14 @@ func Test_createShortURL(t *testing.T) {
 }
 
 func Test_getOriginalURL(t *testing.T) {
-	router := CreateRouter()
+	options := new(config.Options)
+	options.Parse()
+
+	repo := repository.NewRepo()
+	service := service.NewService(repo)
+	controller := NewСontroller(service, options)
+
+	router := controller.CreateRouter()
 	server := httptest.NewServer(router)
 
 	defer server.Close()

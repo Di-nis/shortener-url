@@ -1,33 +1,20 @@
 package service
 
 import (
-	"errors"
+	"github.com/Di-nis/shortener-url/internal/repository"
 )
 
-
-const urlShortMock = "hjkFSsrTWdf"
-var (
-	OriginalAndShotArray = map[string]string{
-		"EwHXdJfB": "https://practicum.yandex.ru/",
-	}
-)
-
-// CreateURLShort - создание короткого адреса URL.
-func CreateURLShort(urlOriginalIn string) string {
-	for urlShort, urlOriginal := range OriginalAndShotArray {
-		if urlOriginal == urlOriginalIn {
-			return urlShort
-		}
-	}
-	OriginalAndShotArray[urlShortMock] = urlOriginalIn
-	return urlShortMock
+type URLRepository interface {
+	GetURL(string) (string, error)
+	CreateURL(string) string
 }
 
-// GetURLOriginal - получение оригинального адреса URL.
-func GetURLOriginal(urlShort string) (string, error) {
-	urlOriginal, ok := OriginalAndShotArray[urlShort]
-	if !ok {
-		return "", errors.New("internal/service/service.go: no data")
+type Service struct {
+	Repo URLRepository
+}
+
+func NewService(repo *repository.Repo) *Service {
+	return &Service{
+		Repo: repo,
 	}
-	return urlOriginal, nil
 }

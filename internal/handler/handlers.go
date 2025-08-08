@@ -2,26 +2,38 @@ package handler
 
 import (
 	"fmt"
-	"github.com/Di-nis/shortener-url/internal/config"
-	"github.com/Di-nis/shortener-url/internal/service"
 	"io"
 	"net/http"
 	"reflect"
 
+	"github.com/Di-nis/shortener-url/internal/config"
+	"github.com/Di-nis/shortener-url/internal/service"
+
 	"github.com/go-chi/chi/v5"
 )
 
-// Создание роутера.
-func CreateRouter() http.Handler {
+type Controller struct {
+	Service *service.Service
+	Options *config.Options
+}
+
+func NewСontroller(service *service.Service, options *config.Options) *Controller {
+	return &Controller{
+		Service: service,
+		Options: options,
+	}
+}
+
+func (controller *Controller) CreateRouter() http.Handler {
 	router := chi.NewRouter()
 
-	router.Post("/", createShortURL)
-	router.Get("/{short_url}", getOriginalURL)
+	router.Post("/", controller.createShortURL)
+	router.Get("/{short_url}", controller.getOriginalURL)
 	return router
 }
 
 // createShortURL обрабатывает HTTP-запрос.
-func createShortURL(res http.ResponseWriter, req *http.Request) {
+func (controller *Controller) createShortURL(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -36,8 +48,8 @@ func createShortURL(res http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
 	urlOriginal := string(bodyBytes)
-	urlShort := service.CreateURLShort(urlOriginal)
-	bodyResult := fmt.Sprintf("http://localhost:%s/%s", config.Port, urlShort)
+	urlShort := controller.Service.Repo.CreateURL(urlOriginal)
+	bodyResult := fmt.Sprintf("%s/%s", controller.Options.BaseURL, urlShort)
 
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
@@ -45,7 +57,7 @@ func createShortURL(res http.ResponseWriter, req *http.Request) {
 }
 
 // getOriginalURL обрабатывает HTTP-запрос.
-func getOriginalURL(res http.ResponseWriter, req *http.Request) {
+func (controller *Controller) getOriginalURL(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -54,7 +66,7 @@ func getOriginalURL(res http.ResponseWriter, req *http.Request) {
 	URLShort := chi.URLParam(req, "short_url")
 	defer req.Body.Close()
 
-	urlOriginal, err := service.GetURLOriginal(URLShort)
+	urlOriginal, err := controller.Service.Repo.GetURL(URLShort)
 	if err != nil {
 		res.WriteHeader(http.StatusNotFound)
 		return
