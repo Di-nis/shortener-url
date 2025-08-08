@@ -36,11 +36,7 @@ func createShortURL(res http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
 	urlOriginal := string(bodyBytes)
-	urlShort, err := service.CreateURLShort(urlOriginal)
-	if err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	urlShort := service.CreateURLShort(urlOriginal)
 	bodyResult := fmt.Sprintf("http://localhost:%s/%s", config.Port, urlShort)
 
 	res.Header().Set("Content-Type", "text/plain")

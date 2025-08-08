@@ -59,16 +59,6 @@ func Test_createShortURL(t *testing.T) {
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
-		{
-			name:   "Test_createShortURL, метод - POST, ошибки записи в бащу данных",
-			body:   `https://sport-express.ru/`,
-			method: http.MethodPost,
-			want: want{
-				statusCode:  http.StatusInternalServerError,
-				response:    ``,
-				contentType: "",
-			},
-		},
 	}
 
 	for _, tt := range tests {
