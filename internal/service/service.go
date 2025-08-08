@@ -5,16 +5,21 @@ import (
 )
 
 
-const urlShortMock = "EwHXdJfB"
+const urlShortMock = "hjkFSsrTWdf"
 var (
 	OriginalAndShotArray = map[string]string{
-		urlShortMock: "https://practicum.yandex.ru/",
+		"EwHXdJfB": "https://practicum.yandex.ru/",
 	}
 )
 
 // CreateURLShort - создание короткого адреса URL.
 func CreateURLShort(urlOriginalIn string) string {
-	OriginalAndShotArray[urlOriginalIn] = urlShortMock
+	for urlShort, urlOriginal := range OriginalAndShotArray {
+		if urlOriginal == urlOriginalIn {
+			return urlShort
+		}
+	}
+	OriginalAndShotArray[urlShortMock] = urlOriginalIn
 	return urlShortMock
 }
 
