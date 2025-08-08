@@ -1,15 +1,16 @@
 package app
 
 import (
-	"fmt"
+	"net/http"
+
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/handler"
-	"net/http"
 )
 
 func Run() error {
-	address := fmt.Sprintf(":%s", config.Port)
+	a := new(config.Run)
+	a.ParseOptions()
 
 	router := handler.CreateRouter()
-	return http.ListenAndServe(address, router)
+	return http.ListenAndServe(a.URL, router)
 }
