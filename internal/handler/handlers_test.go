@@ -30,7 +30,7 @@ func Test_createShortURL(t *testing.T) {
 		want   want
 	}{
 		{
-			name:   "Test_createShortURL, запрос 1",
+			name:   "Test_createShortURL, метод - POST, короткий URL сформирован",
 			body:   `https://practicum.yandex.ru/`,
 			method: http.MethodPost,
 			want: want{
@@ -40,7 +40,7 @@ func Test_createShortURL(t *testing.T) {
 			},
 		},
 		{
-			name:   "Test_createShortURL, запрос 2",
+			name:   "Test_createShortURL, метод - GET, метод не соответствует требованиям обработчика",
 			body:   `https://practicum.yandex.ru/`,
 			method: http.MethodGet,
 			want: want{
@@ -50,13 +50,23 @@ func Test_createShortURL(t *testing.T) {
 			},
 		},
 		{
-			name:   "Test_createShortURL, запрос 3",
+			name:   "Test_createShortURL, метод - POST, запрос не содержит url",
 			body:   ``,
 			method: http.MethodPost,
 			want: want{
 				statusCode:  http.StatusBadRequest,
 				response:    "Не удалось прочитать тело запроса\n",
 				contentType: "text/plain; charset=utf-8",
+			},
+		},
+		{
+			name:   "Test_createShortURL, метод - POST, ошибки записи в бащу данных",
+			body:   `https://sport-express.ru/`,
+			method: http.MethodPost,
+			want: want{
+				statusCode:  http.StatusInternalServerError,
+				response:    ``,
+				contentType: "",
 			},
 		},
 	}

@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"fmt"
+	"github.com/Di-nis/shortener-url/internal/config"
+	"github.com/Di-nis/shortener-url/internal/service"
 	"io"
 	"net/http"
 	"reflect"
@@ -8,10 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-var (
-	OriginalAndShotArray = map[string]string{}
-)
-
+// Создание роутера.
 func CreateRouter() http.Handler {
 	router := chi.NewRouter()
 
@@ -35,11 +35,17 @@ func createShortURL(res http.ResponseWriter, req *http.Request) {
 
 	defer req.Body.Close()
 
-	OriginalAndShotArray["EwHXdJfB"] = string(bodyBytes)
+	urlOriginal := string(bodyBytes)
+	urlShort, err := service.CreateURLShort(urlOriginal)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	bodyResult := fmt.Sprintf("http://localhost:%s/%s", config.Port, urlShort)
 
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
-	res.Write([]byte("http://localhost:8080/EwHXdJfB"))
+	res.Write([]byte(bodyResult))
 }
 
 // getOriginalURL обрабатывает HTTP-запрос.
@@ -49,15 +55,15 @@ func getOriginalURL(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	shortURL := chi.URLParam(req, "short_url")
+	URLShort := chi.URLParam(req, "short_url")
 	defer req.Body.Close()
 
-	headerLocation, ok := OriginalAndShotArray[shortURL]
-	if !ok {
+	urlOriginal, err := service.GetURLOriginal(URLShort)
+	if err != nil {
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
-	res.Header().Add("Location", headerLocation)
+	res.Header().Add("Location", urlOriginal)
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusTemporaryRedirect)
 }
