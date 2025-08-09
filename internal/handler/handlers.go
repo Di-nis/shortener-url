@@ -8,6 +8,7 @@ import (
 
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/service"
+	"github.com/Di-nis/shortener-url/internal/repository"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -24,16 +25,16 @@ func NewСontroller(service *service.Service, options *config.Options) *Controll
 	}
 }
 
-func (controller *Controller) CreateRouter() http.Handler {
+func CreateRouter() http.Handler {
 	router := chi.NewRouter()
 
-	router.Post("/", controller.createShortURL)
-	router.Get("/{short_url}", controller.getOriginalURL)
+	router.Post("/", createURLShort)
+	router.Get("/{short_url}", getlURLOriginal)
 	return router
 }
 
-// createShortURL обрабатывает HTTP-запрос.
-func (controller *Controller) createShortURL(res http.ResponseWriter, req *http.Request) {
+// createURLShort обрабатывает HTTP-запрос.
+func createURLShort(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -47,17 +48,20 @@ func (controller *Controller) createShortURL(res http.ResponseWriter, req *http.
 
 	defer req.Body.Close()
 
+	repo := repository.NewRepo()
+
 	urlOriginal := string(bodyBytes)
-	urlShort := controller.Service.Repo.CreateURL(urlOriginal)
-	bodyResult := fmt.Sprintf("%s/%s", controller.Options.BaseURL, urlShort)
+	urlShort := repo.CreateURL(urlOriginal)
+
+	bodyResult := fmt.Sprintf("http://localhost:8080/%s", urlShort)
 
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
 	res.Write([]byte(bodyResult))
 }
 
-// getOriginalURL обрабатывает HTTP-запрос.
-func (controller *Controller) getOriginalURL(res http.ResponseWriter, req *http.Request) {
+// getlURLOriginal обрабатывает HTTP-запрос.
+func getlURLOriginal(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -66,7 +70,9 @@ func (controller *Controller) getOriginalURL(res http.ResponseWriter, req *http.
 	URLShort := chi.URLParam(req, "short_url")
 	defer req.Body.Close()
 
-	urlOriginal, err := controller.Service.Repo.GetURL(URLShort)
+	repo := repository.NewRepo()
+
+	urlOriginal, err := repo.GetURL(URLShort)
 	if err != nil {
 		res.WriteHeader(http.StatusNotFound)
 		return
