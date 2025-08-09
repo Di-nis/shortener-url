@@ -5,15 +5,16 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"github.com/go-resty/resty/v2"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/repository"
 	"github.com/Di-nis/shortener-url/internal/service"
+	"github.com/go-resty/resty/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func Test_createShortURL(t *testing.T) {
+func TestCreateAndGetURL(t *testing.T) {
 	options := new(config.Options)
 	options.Parse()
 
@@ -33,11 +34,12 @@ func Test_createShortURL(t *testing.T) {
 		contentType string
 	}
 
-	tests := []struct {
-		name   string
-		body   string
-		method string
-		want   want
+	testsCreate := []struct {
+		name     string
+		body     string
+		shortURL string
+		method   string
+		want     want
 	}{
 		{
 			name:   "Test_createShortURL, метод - POST, короткий URL сформирован",
@@ -71,7 +73,7 @@ func Test_createShortURL(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for _, tt := range testsCreate {
 		t.Run(tt.method, func(t *testing.T) {
 			req := resty.New().R()
 			req.Method = tt.method
@@ -86,31 +88,19 @@ func Test_createShortURL(t *testing.T) {
 			assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"))
 		})
 	}
-// }
 
-// func Test_getOriginalURL(t *testing.T) {
-// 	router := CreateRouter()
-// 	server := httptest.NewServer(router)
-
-// 	defer server.Close()
-
-	type want1 struct {
-		code        int
-		response    string
-		contentType string
-	}
-	tests1 := []struct {
+	testsGet := []struct {
 		name     string
 		shortURL string
 		method   string
-		want     want1
+		want     want
 	}{
 		{
 			name:     "Test_getOriginalURL, метод - Get, адрес - существующий в БД адрес",
 			shortURL: "EwHXdJfB",
 			method:   http.MethodGet,
-			want: want1{
-				code:        http.StatusTemporaryRedirect,
+			want: want{
+				statusCode:  http.StatusTemporaryRedirect,
 				response:    `https://practicum.yandex.ru/`,
 				contentType: "text/plain",
 			},
@@ -119,8 +109,8 @@ func Test_createShortURL(t *testing.T) {
 			name:     "Test_getOriginalURL, метод - Post, адрес - существующий в БД адрес",
 			shortURL: "EwHXdJfB",
 			method:   http.MethodPost,
-			want: want1{
-				code:        http.StatusMethodNotAllowed,
+			want: want{
+				statusCode:  http.StatusMethodNotAllowed,
 				response:    "",
 				contentType: "",
 			},
@@ -129,14 +119,14 @@ func Test_createShortURL(t *testing.T) {
 			name:     "Test_getOriginalURL, метод - Post, адрес в БД не найден",
 			shortURL: "nvjkrhsfdvn",
 			method:   http.MethodGet,
-			want: want1{
-				code:        http.StatusNotFound,
+			want: want{
+				statusCode:  http.StatusNotFound,
 				response:    "",
 				contentType: "",
 			},
 		},
 	}
-	for _, tt := range tests1 {
+	for _, tt := range testsGet {
 		t.Run(tt.name, func(t *testing.T) {
 			req := resty.New().SetRedirectPolicy(resty.NoRedirectPolicy()).R()
 			req.Method = tt.method
@@ -147,7 +137,7 @@ func Test_createShortURL(t *testing.T) {
 				assert.True(t, strings.Contains(err.Error(), "auto redirect is disabled"))
 			}
 
-			assert.Equal(t, tt.want.code, resp.StatusCode())
+			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
 			assert.Equal(t, tt.want.response, string(resp.Header().Get("Location")))
 			assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"))
 
