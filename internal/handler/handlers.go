@@ -25,16 +25,16 @@ func NewСontroller(service *service.Service, options *config.Options) *Controll
 	}
 }
 
-func CreateRouter() http.Handler {
+func (c *Controller)CreateRouter() http.Handler {
 	router := chi.NewRouter()
 
-	router.Post("/", createURLShort)
-	router.Get("/{short_url}", getlURLOriginal)
+	router.Post("/", c.createURLShort)
+	router.Get("/{short_url}", c.getlURLOriginal)
 	return router
 }
 
 // createURLShort обрабатывает HTTP-запрос.
-func createURLShort(res http.ResponseWriter, req *http.Request) {
+func (c *Controller) createURLShort(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -53,7 +53,7 @@ func createURLShort(res http.ResponseWriter, req *http.Request) {
 	urlOriginal := string(bodyBytes)
 	urlShort := repo.CreateURL(urlOriginal)
 
-	bodyResult := fmt.Sprintf("http://localhost:8080/%s", urlShort)
+	bodyResult := fmt.Sprintf("%s/%s", c.Options.BaseURL, urlShort)
 
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
@@ -61,7 +61,7 @@ func createURLShort(res http.ResponseWriter, req *http.Request) {
 }
 
 // getlURLOriginal обрабатывает HTTP-запрос.
-func getlURLOriginal(res http.ResponseWriter, req *http.Request) {
+func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return

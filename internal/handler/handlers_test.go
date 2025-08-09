@@ -5,14 +5,24 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/Di-nis/shortener-url/internal/config"
+	"github.com/Di-nis/shortener-url/internal/repository"
+	"github.com/Di-nis/shortener-url/internal/service"
 )
 
 func Test_createShortURL(t *testing.T) {
-	router := CreateRouter()
+	options := new(config.Options)
+	options.Parse()
+
+	repo := repository.NewRepo()
+	service := service.NewService(repo)
+	controller := NewСontroller(service, options)
+
+	router := controller.CreateRouter()
+
 	server := httptest.NewServer(router)
 
 	defer server.Close()
@@ -76,30 +86,30 @@ func Test_createShortURL(t *testing.T) {
 			assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"))
 		})
 	}
-}
+// }
 
-func Test_getOriginalURL(t *testing.T) {
-	router := CreateRouter()
-	server := httptest.NewServer(router)
+// func Test_getOriginalURL(t *testing.T) {
+// 	router := CreateRouter()
+// 	server := httptest.NewServer(router)
 
-	defer server.Close()
+// 	defer server.Close()
 
-	type want struct {
+	type want1 struct {
 		code        int
 		response    string
 		contentType string
 	}
-	tests := []struct {
+	tests1 := []struct {
 		name     string
 		shortURL string
 		method   string
-		want     want
+		want     want1
 	}{
 		{
 			name:     "Test_getOriginalURL, метод - Get, адрес - существующий в БД адрес",
 			shortURL: "EwHXdJfB",
 			method:   http.MethodGet,
-			want: want{
+			want: want1{
 				code:        http.StatusTemporaryRedirect,
 				response:    `https://practicum.yandex.ru/`,
 				contentType: "text/plain",
@@ -109,7 +119,7 @@ func Test_getOriginalURL(t *testing.T) {
 			name:     "Test_getOriginalURL, метод - Post, адрес - существующий в БД адрес",
 			shortURL: "EwHXdJfB",
 			method:   http.MethodPost,
-			want: want{
+			want: want1{
 				code:        http.StatusMethodNotAllowed,
 				response:    "",
 				contentType: "",
@@ -119,14 +129,14 @@ func Test_getOriginalURL(t *testing.T) {
 			name:     "Test_getOriginalURL, метод - Post, адрес в БД не найден",
 			shortURL: "nvjkrhsfdvn",
 			method:   http.MethodGet,
-			want: want{
+			want: want1{
 				code:        http.StatusNotFound,
 				response:    "",
 				contentType: "",
 			},
 		},
 	}
-	for _, tt := range tests {
+	for _, tt := range tests1 {
 		t.Run(tt.name, func(t *testing.T) {
 			req := resty.New().SetRedirectPolicy(resty.NoRedirectPolicy()).R()
 			req.Method = tt.method
