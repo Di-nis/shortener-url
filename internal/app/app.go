@@ -18,5 +18,5 @@ func Run() error {
 	// controller := handler.NewСontroller(service, options)
 
 	router := handler.CreateRouter()
-	return http.ListenAndServe(options.Port, router)
+	return http.ListenAndServe(options.BaseURL, router)
 }
