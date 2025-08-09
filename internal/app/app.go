@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/Di-nis/shortener-url/internal/config"
@@ -12,11 +13,12 @@ import (
 func Run() error {
 	options := new(config.Options)
 	options.Parse()
+	fmt.Println(options.Port)
 
 	// repo := repository.NewRepo()
 	// service := service.NewService(repo)
 	// controller := handler.NewСontroller(service, options)
 
 	router := handler.CreateRouter()
-	return http.ListenAndServe(options.BaseURL, router)
+	return http.ListenAndServe(":" + options.Port, router)
 }
