@@ -64,7 +64,6 @@ func (c *Controller) createURLShort(res http.ResponseWriter, req *http.Request) 
 
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
-		// TODO уточнить, какой тип ошибки возвращать
 		log.Fatal(err)
 	}
 }

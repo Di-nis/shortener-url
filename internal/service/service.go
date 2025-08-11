@@ -2,7 +2,7 @@ package service
 
 import "crypto/sha256"
 
-var base62Alphabet = []byte("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") // URLRepository - интерфейс для базы данных.
+var base62Alphabet = []byte("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 // Service - структура сервиса по созданию уникального короткого url.
 type Service struct{}

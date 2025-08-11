@@ -7,6 +7,7 @@ import (
 
 const hashLength = 8
 
+// URLRepository - интерфейс для базы данных.
 type URLRepository interface {
 	Create(string, string) error
 	Get(string) (string, error)
