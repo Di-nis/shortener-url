@@ -3,29 +3,32 @@ package handler
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"reflect"
 
 	"github.com/Di-nis/shortener-url/internal/config"
-	"github.com/Di-nis/shortener-url/internal/service"
-	"github.com/Di-nis/shortener-url/internal/repository"
+	"github.com/Di-nis/shortener-url/internal/usecase"
 
 	"github.com/go-chi/chi/v5"
 )
 
+// Controller - структура HTTP-хендлера.
 type Controller struct {
-	Service *service.Service
-	Options *config.Options
+	URLUseCase *usecase.URLUseCase
+	Options    *config.Options
 }
 
-func NewСontroller(service *service.Service, options *config.Options) *Controller {
+// NewСontroller - создание структуры Controller.
+func NewСontroller(urlUseCase *usecase.URLUseCase, options *config.Options) *Controller {
 	return &Controller{
-		Service: service,
-		Options: options,
+		URLUseCase: urlUseCase,
+		Options:    options,
 	}
 }
 
-func (c *Controller)CreateRouter() http.Handler {
+// CreateRouter - маршрутизация запросов.
+func (c *Controller) CreateRouter() http.Handler {
 	router := chi.NewRouter()
 
 	router.Post("/", c.createURLShort)
@@ -33,7 +36,7 @@ func (c *Controller)CreateRouter() http.Handler {
 	return router
 }
 
-// createURLShort обрабатывает HTTP-запрос.
+// createURLShort - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
 func (c *Controller) createURLShort(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
@@ -48,19 +51,25 @@ func (c *Controller) createURLShort(res http.ResponseWriter, req *http.Request) 
 
 	defer req.Body.Close()
 
-	repo := repository.NewRepo()
-
 	urlOriginal := string(bodyBytes)
-	urlShort := repo.CreateURL(urlOriginal)
+	urlShort, err := c.URLUseCase.CreateURL(urlOriginal)
+	if err != nil {
+		res.WriteHeader(http.StatusConflict)
+	}
 
 	bodyResult := fmt.Sprintf("%s/%s", c.Options.BaseURL, urlShort)
 
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
-	res.Write([]byte(bodyResult))
+
+	_, err = res.Write([]byte(bodyResult))
+	if err != nil {
+		// TODO уточнить, какой тип ошибки возвращать
+		log.Fatal(err)
+	}
 }
 
-// getlURLOriginal обрабатывает HTTP-запрос.
+// getlURLOriginal - обрабатка HTTP-запроса: тип запроcа - GET, вовзвращает оригинальный URL.
 func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		res.WriteHeader(http.StatusMethodNotAllowed)
@@ -70,9 +79,7 @@ func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request)
 	URLShort := chi.URLParam(req, "short_url")
 	defer req.Body.Close()
 
-	repo := repository.NewRepo()
-
-	urlOriginal, err := repo.GetURL(URLShort)
+	urlOriginal, err := c.URLUseCase.GetURL(URLShort)
 	if err != nil {
 		res.WriteHeader(http.StatusNotFound)
 		return

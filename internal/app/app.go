@@ -7,6 +7,7 @@ import (
 	"github.com/Di-nis/shortener-url/internal/handler"
 	"github.com/Di-nis/shortener-url/internal/repository"
 	"github.com/Di-nis/shortener-url/internal/service"
+	"github.com/Di-nis/shortener-url/internal/usecase"
 )
 
 func Run() error {
@@ -14,8 +15,10 @@ func Run() error {
 	options.Parse()
 
 	repo := repository.NewRepo()
-	service := service.NewService(repo)
-	controller := handler.NewСontroller(service, options)
+	svc := service.NewService()
+
+	urlUseCase := usecase.NewURLUseCase(repo, svc)
+	controller := handler.NewСontroller(urlUseCase, options)
 
 	router := controller.CreateRouter()
 	return http.ListenAndServe(options.Port, router)

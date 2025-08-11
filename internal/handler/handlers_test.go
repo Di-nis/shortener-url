@@ -9,6 +9,7 @@ import (
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/repository"
 	"github.com/Di-nis/shortener-url/internal/service"
+	"github.com/Di-nis/shortener-url/internal/usecase"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,8 +20,9 @@ func TestCreateAndGetURL(t *testing.T) {
 	options.Parse()
 
 	repo := repository.NewRepo()
-	service := service.NewService(repo)
-	controller := NewСontroller(service, options)
+	serv := service.NewService()
+	urlUseCase := usecase.NewURLUseCase(repo, serv)
+	controller := NewСontroller(urlUseCase, options)
 
 	router := controller.CreateRouter()
 
@@ -42,18 +44,18 @@ func TestCreateAndGetURL(t *testing.T) {
 		want     want
 	}{
 		{
-			name:   "Test_createShortURL, метод - POST, короткий URL сформирован",
+			name:   "TestCreateURL, метод - POST, короткий URL сформирован",
 			body:   `https://practicum.yandex.ru/`,
 			method: http.MethodPost,
 			want: want{
 				statusCode:  http.StatusCreated,
-				response:    "http://localhost:8080/EwHXdJfB",
+				response:    "http://localhost:8080/5J3xKXF9",
 				contentType: "text/plain",
 			},
 		},
 		{
-			name:   "Test_createShortURL, метод - GET, метод не соответствует требованиям обработчика",
-			body:   `https://practicum.yandex.ru/`,
+			name:   "TestCreateURL, метод - GET, метод не соответствует требованиям",
+			body:   "https://practicum.yandex.ru/",
 			method: http.MethodGet,
 			want: want{
 				statusCode:  http.StatusMethodNotAllowed,
@@ -62,7 +64,7 @@ func TestCreateAndGetURL(t *testing.T) {
 			},
 		},
 		{
-			name:   "Test_createShortURL, метод - POST, запрос не содержит url",
+			name:   "TestCreateURL, метод - POST, запрос не содержит url",
 			body:   ``,
 			method: http.MethodPost,
 			want: want{
@@ -96,8 +98,8 @@ func TestCreateAndGetURL(t *testing.T) {
 		want     want
 	}{
 		{
-			name:     "Test_getOriginalURL, метод - Get, адрес - существующий в БД адрес",
-			shortURL: "EwHXdJfB",
+			name:     "TestGetURL, метод - Get, адрес - существующий в БД адрес",
+			shortURL: "5J3xKXF9",
 			method:   http.MethodGet,
 			want: want{
 				statusCode:  http.StatusTemporaryRedirect,
@@ -106,8 +108,8 @@ func TestCreateAndGetURL(t *testing.T) {
 			},
 		},
 		{
-			name:     "Test_getOriginalURL, метод - Post, адрес - существующий в БД адрес",
-			shortURL: "EwHXdJfB",
+			name:     "TestGetURL, метод - Post, адрес - существующий в БД адрес",
+			shortURL: "5J3xKXF9",
 			method:   http.MethodPost,
 			want: want{
 				statusCode:  http.StatusMethodNotAllowed,
@@ -116,8 +118,8 @@ func TestCreateAndGetURL(t *testing.T) {
 			},
 		},
 		{
-			name:     "Test_getOriginalURL, метод - Post, адрес в БД не найден",
-			shortURL: "nvjkrhsfdvn",
+			name:     "TestGetURL, метод - Post, адрес в БД не найден",
+			shortURL: "nvjkrhsf",
 			method:   http.MethodGet,
 			want: want{
 				statusCode:  http.StatusNotFound,

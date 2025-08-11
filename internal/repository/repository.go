@@ -4,36 +4,32 @@ import (
 	"errors"
 )
 
-const urlShortMock = "hjkFSsrTWdf"
+// Repo - структура базы данных.
+type Repo struct {
+	urlOriginalAndShort map[string]string
+}
 
-var (
-	OriginalAndShotArray = map[string]string{
-		"EwHXdJfB": "https://practicum.yandex.ru/",
-	}
-)
-
-type Repo struct {}
-
+// NewRepo - создание структуры Repo.
 func NewRepo() *Repo {
-	return &Repo{}
-}
-
-// CreateURL - создание короткого адреса URL.
-func (s *Repo) CreateURL(urlOriginalIn string) string {
-	for urlShort, urlOriginal := range OriginalAndShotArray {
-		if urlOriginal == urlOriginalIn {
-			return urlShort
-		}
+	return &Repo{
+		urlOriginalAndShort: make(map[string]string, 100),
 	}
-	OriginalAndShotArray[urlShortMock] = urlOriginalIn
-	return urlShortMock
 }
 
-// GetURL - получение оригинального адреса URL.
-func (s *Repo) GetURL(urlShort string) (string, error) {
-	urlOriginal, ok := OriginalAndShotArray[urlShort]
+// Create - сохранение URL в базу данных.
+func (repo *Repo) Create(urlOriginal, urlShort string) error {
+	if _, ok := repo.urlOriginalAndShort[urlShort]; ok {
+		return errors.New("internal/repository/repository.go: короткий URL уже существует")
+	}
+	repo.urlOriginalAndShort[urlShort] = urlOriginal
+	return nil
+}
+
+// Get - получение оригинального URL из базы данных.
+func (s *Repo) Get(urlShort string) (string, error) {
+	urlOriginal, ok := s.urlOriginalAndShort[urlShort]
 	if !ok {
-		return "", errors.New("internal/service/service.go: no data")
+		return "", errors.New("internal/repository/repository.go: данные отсутствуют")
 	}
 	return urlOriginal, nil
 }
