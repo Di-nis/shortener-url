@@ -26,8 +26,8 @@ func (repo *Repo) Create(urlOriginal, urlShort string) error {
 }
 
 // Get - получение оригинального URL из базы данных.
-func (s *Repo) Get(urlShort string) (string, error) {
-	urlOriginal, ok := s.urlOriginalAndShort[urlShort]
+func (repo *Repo) Get(urlShort string) (string, error) {
+	urlOriginal, ok := repo.urlOriginalAndShort[urlShort]
 	if !ok {
 		return "", errors.New("internal/repository/repository.go: данные отсутствуют")
 	}
