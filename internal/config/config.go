@@ -14,17 +14,25 @@ type Config struct {
 }
 
 func (a *Config) Parse() {
-	_ = godotenv.Load()
-
 	// первый приоритет - из переменных окружения
+	_ = godotenv.Load()
 	_ = env.Parse(a)
 
-	if a.ServerAddress != "" && a.BaseURL != "" {
-		return
-	}
 	// второй приоритет - из аргументов командной строки
-	flag.StringVar(&a.ServerAddress, "a", "localhost:8080", "URL")
-	flag.StringVar(&a.BaseURL, "b", "http://localhost:8080", "base URL")
+	var serverAddress, baseURL, logLevel string
+	flag.StringVar(&serverAddress, "a", "localhost:8080", "URL")
+	flag.StringVar(&baseURL, "b", "http://localhost:8080", "base URL")
+	flag.StringVar(&logLevel, "b", "info", "log level")
 
 	flag.Parse()
+
+	if a.ServerAddress == "" {
+		a.ServerAddress = serverAddress
+	}
+	if a.BaseURL == "" {
+		a.BaseURL = baseURL
+	}
+	if a.LogLevel == "" {
+		a.LogLevel = logLevel
+	}
 }
