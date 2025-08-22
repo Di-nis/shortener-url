@@ -16,7 +16,7 @@ import (
 )
 
 func TestCreateAndGetURL(t *testing.T) {
-	options := new(config.Options)
+	options := new(config.Config)
 	options.Parse()
 
 	repo := repository.NewRepo()

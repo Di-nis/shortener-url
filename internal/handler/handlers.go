@@ -16,14 +16,14 @@ import (
 // Controller - структура HTTP-хендлера.
 type Controller struct {
 	URLUseCase *usecase.URLUseCase
-	Options    *config.Options
+	Config    *config.Config
 }
 
 // NewСontroller - создание структуры Controller.
-func NewСontroller(urlUseCase *usecase.URLUseCase, options *config.Options) *Controller {
+func NewСontroller(urlUseCase *usecase.URLUseCase, config *config.Config) *Controller {
 	return &Controller{
 		URLUseCase: urlUseCase,
-		Options:    options,
+		Config:    config,
 	}
 }
 
@@ -57,7 +57,7 @@ func (c *Controller) createURLShort(res http.ResponseWriter, req *http.Request) 
 		res.WriteHeader(http.StatusConflict)
 	}
 
-	bodyResult := fmt.Sprintf("%s/%s", c.Options.BaseURL, urlShort)
+	bodyResult := fmt.Sprintf("%s/%s", c.Config.BaseURL, urlShort)
 
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)

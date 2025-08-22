@@ -3,8 +3,10 @@ module github.com/Di-nis/shortener-url
 go 1.24.5
 
 require (
+	github.com/caarlos0/env/v6 v6.10.1
 	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-resty/resty/v2 v2.16.5
+	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.10.0
 )
 

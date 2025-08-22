@@ -11,15 +11,15 @@ import (
 )
 
 func Run() error {
-	options := new(config.Options)
-	options.Parse()
+	config := new(config.Config)
+	config.Parse()
 
 	repo := repository.NewRepo()
 	svc := service.NewService()
 
 	urlUseCase := usecase.NewURLUseCase(repo, svc)
-	controller := handler.NewСontroller(urlUseCase, options)
+	controller := handler.NewСontroller(urlUseCase, config)
 
 	router := controller.CreateRouter()
-	return http.ListenAndServe(options.Port, router)
+	return http.ListenAndServe(config.ServerAddress, router)
 }
