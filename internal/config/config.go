@@ -10,6 +10,7 @@ import (
 type Config struct {
 	ServerAddress string `env:"SERVER_ADDRESS"`
 	BaseURL       string `env:"BASE_URL"`
+	LogLevel      string `env:"LOG_LEVEL"`
 }
 
 func (a *Config) Parse() {
@@ -18,12 +19,15 @@ func (a *Config) Parse() {
 	// первый приоритет - из переменных окружения
 	_ = env.Parse(a)
 
-	if a.ServerAddress != "" && a.BaseURL != "" {
-		return
+	if a.ServerAddress == "" {
+		flag.StringVar(&a.ServerAddress, "a", "localhost:8080", "URL")
 	}
-	// второй приоритет - из аргументов командной строки
-	flag.StringVar(&a.ServerAddress, "a", "localhost:8080", "URL")
-	flag.StringVar(&a.BaseURL, "b", "http://localhost:8080", "base URL")
+	if a.BaseURL == "" {
+		flag.StringVar(&a.BaseURL, "b", "http://localhost:8080", "base URL")
+	}
+	if a.LogLevel == "" {
+		flag.StringVar(&a.LogLevel, "c", "info", "log level")
+	}
 
 	flag.Parse()
 }
