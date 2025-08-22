@@ -19,10 +19,10 @@ func (a *Config) Parse() {
 	_ = env.Parse(a)
 
 	// второй приоритет - из аргументов командной строки
-	var serverAddress, baseURL, logLevel string
+	var serverAddress, baseURL string
 	flag.StringVar(&serverAddress, "a", "localhost:8080", "URL")
 	flag.StringVar(&baseURL, "b", "http://localhost:8080", "base URL")
-	flag.StringVar(&logLevel, "b", "info", "log level")
+	// flag.StringVar(&logLevel, "b", "info", "log level")
 
 	flag.Parse()
 
@@ -32,7 +32,7 @@ func (a *Config) Parse() {
 	if a.BaseURL == "" {
 		a.BaseURL = baseURL
 	}
-	if a.LogLevel == "" {
-		a.LogLevel = logLevel
-	}
+	// if a.LogLevel == "" {
+	// 	a.LogLevel = logLevel
+	// }
 }
