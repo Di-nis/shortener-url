@@ -9,37 +9,11 @@ import (
 	"reflect"
 
 	"github.com/Di-nis/shortener-url/internal/config"
+	"github.com/Di-nis/shortener-url/internal/models"
 	"github.com/Di-nis/shortener-url/internal/usecase"
 
 	"github.com/go-chi/chi/v5"
 )
-
-type URL struct {
-	URLOriginal string
-	URLShort    string
-}
-
-// Кастомная сериализация
-func (u URL) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		URLOriginal string `json:"-"`
-		URLShort    string `json:"result"`
-	}{
-		URLShort: u.URLShort,
-	})
-}
-
-// Кастомная десериализация
-func (u *URL) UnmarshalJSON(data []byte) error {
-	aux := struct {
-		URLOriginal string `json:"url"`
-	}{}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	u.URLOriginal = aux.URLOriginal
-	return nil
-}
 
 // Controller - структура HTTP-хендлера.
 type Controller struct {
@@ -59,14 +33,14 @@ func NewСontroller(urlUseCase *usecase.URLUseCase, config *config.Config) *Cont
 func (c *Controller) CreateRouter() http.Handler {
 	router := chi.NewRouter()
 
-	router.Post("/api/shorten", c.createURLShortJSON)
-	router.Post("/", c.createURLShort)
+	router.Post("/api/shorten", c.createURLShortByJSON)
+	router.Post("/", c.createURLShortByString)
 	router.Get("/{short_url}", c.getlURLOriginal)
 	return router
 }
 
-// createURLShortJSON - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
-func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Request) {
+// createURLShortByJSON - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
+func (c *Controller) createURLShortByJSON(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -80,18 +54,21 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 
 	defer req.Body.Close()
 
-	var url URL
-	if err := json.Unmarshal(bodyBytes, &url); err != nil {
+	var (
+		request  models.Request
+		response models.Response
+	)
+	if err := json.Unmarshal(bodyBytes, &request); err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 
-	urlShort, err := c.URLUseCase.CreateURL(url.URLOriginal)
+	urlShort, err := c.URLUseCase.CreateURL(request.UrlOriginal)
 	if err != nil {
 		res.WriteHeader(http.StatusConflict)
 	}
-	url.URLShort = urlShort
+	response.Result = fmt.Sprintf("%s/%s", c.Config.BaseURL, urlShort)
 
-	bodyResult, err := json.Marshal(url)
+	bodyResult, err := json.Marshal(response)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
@@ -106,8 +83,8 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 	}
 }
 
-// createURLShort - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
-func (c *Controller) createURLShort(res http.ResponseWriter, req *http.Request) {
+// createURLShortByString - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
+func (c *Controller) createURLShortByString(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -125,6 +102,7 @@ func (c *Controller) createURLShort(res http.ResponseWriter, req *http.Request) 
 	urlShort, err := c.URLUseCase.CreateURL(urlOriginal)
 	if err != nil {
 		res.WriteHeader(http.StatusConflict)
+		return
 	}
 
 	bodyResult := fmt.Sprintf("%s/%s", c.Config.BaseURL, urlShort)

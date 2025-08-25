@@ -37,11 +37,10 @@ func TestCreateAndGetURL(t *testing.T) {
 	}
 
 	testsCreate := []struct {
-		name     string
-		body     string
-		shortURL string
-		method   string
-		want     want
+		name   string
+		body   string
+		method string
+		want   want
 	}{
 		{
 			name:   "TestCreateURL, метод - POST, короткий URL сформирован",
@@ -80,6 +79,40 @@ func TestCreateAndGetURL(t *testing.T) {
 			req := resty.New().R()
 			req.Method = tt.method
 			req.URL = server.URL
+			req.Body = tt.body
+
+			resp, err := req.Send()
+
+			require.NoError(t, err, "error making HTTP request")
+			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
+			assert.Equal(t, tt.want.response, string(resp.Body()))
+			assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"))
+		})
+	}
+
+	testsCreateJSON := []struct {
+		name string
+		body   string
+		method string
+		want   want
+	}{
+		{
+			name: "TestCreateURLByJSON, метод - POST, короткий URL сформирован",
+			body:   `{"url": "https://practicum.yandex.ru"}`,
+			method: http.MethodPost,
+			want: want{
+				statusCode:  http.StatusCreated,
+				response:    `{"result":"http://localhost:8080/bTKNZu94"}`,
+				contentType: "application/json",
+			},
+		},
+	}
+
+	for _, tt := range testsCreateJSON {
+		t.Run(tt.method, func(t *testing.T) {
+			req := resty.New().R()
+			req.Method = tt.method
+			req.URL = server.URL + "/api/shorten"
 			req.Body = tt.body
 
 			resp, err := req.Send()
