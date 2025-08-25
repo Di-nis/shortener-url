@@ -21,24 +21,24 @@ type URL struct {
 
 // Кастомная сериализация
 func (u URL) MarshalJSON() ([]byte, error) {
-    return json.Marshal(struct {
+	return json.Marshal(struct {
 		URLOriginal string `json:"-"`
 		URLShort    string `json:"result"`
-    }{
-        URLShort:  u.URLShort,
-    })
+	}{
+		URLShort: u.URLShort,
+	})
 }
 
 // Кастомная десериализация
 func (u *URL) UnmarshalJSON(data []byte) error {
-    aux := struct {
+	aux := struct {
 		URLOriginal string `json:"url"`
-    }{}
-    if err := json.Unmarshal(data, &aux); err != nil {
-        return err
-    }
-    u.URLOriginal = aux.URLOriginal
-    return nil
+	}{}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	u.URLOriginal = aux.URLOriginal
+	return nil
 }
 
 // Controller - структура HTTP-хендлера.
@@ -59,14 +59,14 @@ func NewСontroller(urlUseCase *usecase.URLUseCase, config *config.Config) *Cont
 func (c *Controller) CreateRouter() http.Handler {
 	router := chi.NewRouter()
 
-	// router.Post("/", c.createURLShort)
-	router.Post("/api/shorten", c.createURLShortJson)
+	router.Post("/api/shorten", c.createURLShortJSON)
+	router.Post("/", c.createURLShort)
 	router.Get("/{short_url}", c.getlURLOriginal)
 	return router
 }
 
-// createURLShortJson - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
-func (c *Controller) createURLShortJson(res http.ResponseWriter, req *http.Request) {
+// createURLShortJSON - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
+func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -93,9 +93,9 @@ func (c *Controller) createURLShortJson(res http.ResponseWriter, req *http.Reque
 
 	bodyResult, err := json.Marshal(url)
 	if err != nil {
-        http.Error(res, err.Error(), http.StatusInternalServerError)
-        return
-    }
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusCreated)
