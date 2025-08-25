@@ -62,7 +62,7 @@ func (c *Controller) createURLShortByJSON(res http.ResponseWriter, req *http.Req
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 
-	urlShort, err := c.URLUseCase.CreateURL(request.UrlOriginal)
+	urlShort, err := c.URLUseCase.CreateURL(request.URLOriginal)
 	if err != nil {
 		res.WriteHeader(http.StatusConflict)
 	}
