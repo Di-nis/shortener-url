@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -13,17 +14,44 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+type URL struct {
+	URLOriginal string
+	URLShort    string
+}
+
+// Кастомная сериализация
+func (u URL) MarshalJSON() ([]byte, error) {
+    return json.Marshal(struct {
+		URLOriginal string `json:"-"`
+		URLShort    string `json:"result"`
+    }{
+        URLShort:  u.URLShort,
+    })
+}
+
+// Кастомная десериализация
+func (u *URL) UnmarshalJSON(data []byte) error {
+    aux := struct {
+		URLOriginal string `json:"url"`
+    }{}
+    if err := json.Unmarshal(data, &aux); err != nil {
+        return err
+    }
+    u.URLOriginal = aux.URLOriginal
+    return nil
+}
+
 // Controller - структура HTTP-хендлера.
 type Controller struct {
 	URLUseCase *usecase.URLUseCase
-	Config    *config.Config
+	Config     *config.Config
 }
 
 // NewСontroller - создание структуры Controller.
 func NewСontroller(urlUseCase *usecase.URLUseCase, config *config.Config) *Controller {
 	return &Controller{
 		URLUseCase: urlUseCase,
-		Config:    config,
+		Config:     config,
 	}
 }
 
@@ -31,9 +59,51 @@ func NewСontroller(urlUseCase *usecase.URLUseCase, config *config.Config) *Cont
 func (c *Controller) CreateRouter() http.Handler {
 	router := chi.NewRouter()
 
-	router.Post("/", c.createURLShort)
+	// router.Post("/", c.createURLShort)
+	router.Post("/api/shorten", c.createURLShortJson)
 	router.Get("/{short_url}", c.getlURLOriginal)
 	return router
+}
+
+// createURLShortJson - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
+func (c *Controller) createURLShortJson(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	bodyBytes, _ := io.ReadAll(req.Body)
+	if reflect.DeepEqual(bodyBytes, []byte{}) {
+		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
+		return
+	}
+
+	defer req.Body.Close()
+
+	var url URL
+	if err := json.Unmarshal(bodyBytes, &url); err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+	}
+
+	urlShort, err := c.URLUseCase.CreateURL(url.URLOriginal)
+	if err != nil {
+		res.WriteHeader(http.StatusConflict)
+	}
+	url.URLShort = urlShort
+
+	bodyResult, err := json.Marshal(url)
+	if err != nil {
+        http.Error(res, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusCreated)
+
+	_, err = res.Write([]byte(bodyResult))
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 // createURLShort - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
