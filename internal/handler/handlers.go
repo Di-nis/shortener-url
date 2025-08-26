@@ -33,14 +33,14 @@ func NewСontroller(urlUseCase *usecase.URLUseCase, config *config.Config) *Cont
 func (c *Controller) CreateRouter() http.Handler {
 	router := chi.NewRouter()
 
-	router.Post("/api/shorten", c.createURLShortByJSON)
-	router.Post("/", c.createURLShortByString)
+	router.Post("/api/shorten", c.createURLShortFromJSON)
+	router.Post("/", c.createURLShortFromText)
 	router.Get("/{short_url}", c.getlURLOriginal)
 	return router
 }
 
-// createURLShortByJSON - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
-func (c *Controller) createURLShortByJSON(res http.ResponseWriter, req *http.Request) {
+// createURLShortFromJSON - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
+func (c *Controller) createURLShortFromJSON(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -49,6 +49,7 @@ func (c *Controller) createURLShortByJSON(res http.ResponseWriter, req *http.Req
 	bodyBytes, _ := io.ReadAll(req.Body)
 	if reflect.DeepEqual(bodyBytes, []byte{}) {
 		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
+		res.Header().Set("Content-Type", "")
 		return
 	}
 
@@ -60,11 +61,13 @@ func (c *Controller) createURLShortByJSON(res http.ResponseWriter, req *http.Req
 	)
 	if err := json.Unmarshal(bodyBytes, &request); err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	urlShort, err := c.URLUseCase.CreateURL(request.URLOriginal)
 	if err != nil {
 		res.WriteHeader(http.StatusConflict)
+		return
 	}
 	response.Result = fmt.Sprintf("%s/%s", c.Config.BaseURL, urlShort)
 
@@ -83,8 +86,8 @@ func (c *Controller) createURLShortByJSON(res http.ResponseWriter, req *http.Req
 	}
 }
 
-// createURLShortByString - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
-func (c *Controller) createURLShortByString(res http.ResponseWriter, req *http.Request) {
+// createURLShortFromText - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
+func (c *Controller) createURLShortFromText(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
