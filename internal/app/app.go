@@ -9,6 +9,7 @@ import (
 	"github.com/Di-nis/shortener-url/internal/repository"
 	"github.com/Di-nis/shortener-url/internal/service"
 	"github.com/Di-nis/shortener-url/internal/usecase"
+	"github.com/Di-nis/shortener-url/internal/compress"
 
 	"go.uber.org/zap"
 )
@@ -29,5 +30,5 @@ func Run() error {
 	controller := handler.NewСontroller(urlUseCase, config)
 
 	router := controller.CreateRouter()
-	return http.ListenAndServe(config.ServerAddress, logger.WithLogging(router))
+	return http.ListenAndServe(config.ServerAddress, logger.WithLogging(compress.GzipMiddleware(router)))
 }

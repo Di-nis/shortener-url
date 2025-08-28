@@ -30,3 +30,7 @@ cmd/client/
 
 # Local database
 *.db
+
+# json, zip
+*.json
+*.json.*
