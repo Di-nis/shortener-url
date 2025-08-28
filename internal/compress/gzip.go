@@ -68,29 +68,20 @@ func (c *compressReader) Close() error {
 
 func GzipMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		if req.Method != http.MethodPost {
-			h.ServeHTTP(res, req)
-			return
-		}
-
 		ow := res
-
-		reqAcceptEncoding := req.Header.Get("Accept-Encoding")
-		checkSupportsGzip := strings.Contains(reqAcceptEncoding, "gzip")
-		if checkSupportsGzip {
-			ow := newCompressWriter(res)
+		acceptEncoding := req.Header.Get("Accept-Encoding")
+		supportsGzip := strings.Contains(acceptEncoding, "gzip")
+		if supportsGzip {
+			cw := newCompressWriter(res)
+			ow = cw
 			ow.Header().Set("Content-Encoding", "gzip")
-			
-			defer ow.Close()
+			defer cw.Close()
 		}
 
-		reqContentEncoding := req.Header.Get("Content-Encoding")
-		checkSendsGzip := strings.Contains(reqContentEncoding, "gzip")
+		contentEncoding := req.Header.Get("Content-Encoding")
+		sendsGzip := strings.Contains(contentEncoding, "gzip")
 
-		reqContentType := req.Header.Get("Content-Type")
-		checkSupportsType := strings.Contains(reqContentType, "application/json") || strings.Contains(reqContentType, "text/plain")
-	
-		if checkSendsGzip && checkSupportsType {
+		if sendsGzip {
 			cr, err := newCompressReader(req.Body)
 			if err != nil {
 				res.WriteHeader(http.StatusInternalServerError)
