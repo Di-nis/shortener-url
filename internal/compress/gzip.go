@@ -68,33 +68,34 @@ func (c *compressReader) Close() error {
 
 func GzipMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		// по умолчанию устанавливаем оригинальный http.ResponseWriter как тот,
-		// который будем передавать следующей функции
-		ow := res
-
-		// проверяем, что клиент умеет получать от сервера сжатые данные в формате gzip
-		acceptEncoding := req.Header.Get("Accept-Encoding")
-		supportsGzip := strings.Contains(acceptEncoding, "gzip")
-		if supportsGzip {
-			// оборачиваем оригинальный http.ResponseWriter новым с поддержкой сжатия
-			cw := newCompressWriter(res)
-			// меняем оригинальный http.ResponseWriter на новый
-			ow = cw
-			// не забываем отправить клиенту все сжатые данные после завершения middleware
-			defer cw.Close()
+		if req.Method != http.MethodPost {
+			h.ServeHTTP(res, req)
+			return
 		}
 
-		// проверяем, что клиент отправил серверу сжатые данные в формате gzip
-		contentEncoding := req.Header.Get("Content-Encoding")
-		sendsGzip := strings.Contains(contentEncoding, "gzip")
-		if sendsGzip {
-			// оборачиваем тело запроса в io.Reader с поддержкой декомпрессии
+		ow := res
+
+		reqAcceptEncoding := req.Header.Get("Accept-Encoding")
+		checkSupportsGzip := strings.Contains(reqAcceptEncoding, "gzip")
+		if checkSupportsGzip {
+			ow := newCompressWriter(res)
+			ow.Header().Set("Content-Encoding", "gzip")
+			
+			defer ow.Close()
+		}
+
+		reqContentEncoding := req.Header.Get("Content-Encoding")
+		checkSendsGzip := strings.Contains(reqContentEncoding, "gzip")
+
+		reqContentType := req.Header.Get("Content-Type")
+		checkSupportsType := strings.Contains(reqContentType, "application/json") || strings.Contains(reqContentType, "text/plain")
+	
+		if checkSendsGzip && checkSupportsType {
 			cr, err := newCompressReader(req.Body)
 			if err != nil {
 				res.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			// меняем тело запроса на новое
 			req.Body = cr
 			defer cr.Close()
 		}
