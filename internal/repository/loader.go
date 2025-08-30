@@ -39,16 +39,17 @@ func (p *Producer) WriteURL(urlData URLData) error {
 	return p.writer.Flush()
 }
 
-func (c *Producer) Close() error {
-	return c.file.Close()
+func (p *Producer) Close() error {
+	return p.file.Close()
 }
 
 func SaveToFile(filename string, urlData URLData) error {
 	producer, err := NewProducer(filename)
-	if err != nil {
-		return err
-	}
-	producer.WriteURL(urlData)
+	if err != nil {return err}
+
+	err = producer.WriteURL(urlData)
+	if err != nil {return err}
+
 	producer.Close()
 	return nil
 }
