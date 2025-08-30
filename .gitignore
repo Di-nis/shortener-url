@@ -34,3 +34,6 @@ cmd/client/
 # json, zip
 *.json
 *.json.*
+
+# log
+*.log

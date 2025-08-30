@@ -3,13 +3,13 @@ package app
 import (
 	"net/http"
 
+	"github.com/Di-nis/shortener-url/internal/compress"
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/handler"
 	"github.com/Di-nis/shortener-url/internal/logger"
 	"github.com/Di-nis/shortener-url/internal/repository"
 	"github.com/Di-nis/shortener-url/internal/service"
 	"github.com/Di-nis/shortener-url/internal/usecase"
-	"github.com/Di-nis/shortener-url/internal/compress"
 
 	"go.uber.org/zap"
 )
@@ -18,12 +18,24 @@ func Run() error {
 	config := &config.Config{}
 	config.Parse()
 
-	if err := logger.Initialize(config.LogLevel); err != nil {
+	var err error
+	if err = logger.Initialize(config.LogLevel); err != nil {
 		return err
 	}
 	logger.Log.Info("Running server", zap.String("address", config.ServerAddress))
 
-	repo := repository.NewRepo()
+	repo := repository.NewRepo(config.FileStoragePath)
+
+	// Подготовка данных
+	consumer, err := repository.NewConsumer(config.FileStoragePath)
+	if err != nil {
+		return err
+	}
+	repo.URLOriginalAndShort, err = consumer.LoadFromFile()
+	if err != nil {
+		return err
+	}
+
 	svc := service.NewService()
 
 	urlUseCase := usecase.NewURLUseCase(repo, svc)

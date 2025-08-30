@@ -4,32 +4,53 @@ import (
 	"errors"
 )
 
+type URLData struct {
+	URLShort    string `json:"url_short"`
+	URLOriginal string `json:"url_original"`
+}
+
 // Repo - структура базы данных.
 type Repo struct {
-	urlOriginalAndShort map[string]string
+	URLOriginalAndShort []URLData
+	FileStoragePath     string
 }
 
 // NewRepo - создание структуры Repo.
-func NewRepo() *Repo {
+func NewRepo(fileStoragePath string) *Repo {
 	return &Repo{
-		urlOriginalAndShort: make(map[string]string, 100),
+		URLOriginalAndShort: make([]URLData, 100),
+		FileStoragePath:     fileStoragePath,
 	}
 }
 
 // Create - сохранение URL в базу данных.
 func (repo *Repo) Create(urlOriginal, urlShort string) error {
-	if _, ok := repo.urlOriginalAndShort[urlShort]; ok {
-		return errors.New("internal/repository/repository.go: короткий URL уже существует")
+	for _, urlData := range repo.URLOriginalAndShort {
+		if urlData.URLOriginal == urlOriginal {
+			return errors.New("internal/repository/repository.go: короткий URL уже существует")
+		}
 	}
-	repo.urlOriginalAndShort[urlShort] = urlOriginal
+
+	urlData := URLData{
+		URLShort:    urlShort,
+		URLOriginal: urlOriginal,
+	}
+
+	repo.URLOriginalAndShort = append(repo.URLOriginalAndShort, urlData)
+
+	err := SaveToFile(repo.FileStoragePath, urlData)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 // Get - получение оригинального URL из базы данных.
 func (repo *Repo) Get(urlShort string) (string, error) {
-	urlOriginal, ok := repo.urlOriginalAndShort[urlShort]
-	if !ok {
-		return "", errors.New("internal/repository/repository.go: данные отсутствуют")
+	for _, urlData := range repo.URLOriginalAndShort {
+		if urlData.URLShort == urlShort {
+			return urlData.URLOriginal, nil
+		}
 	}
-	return urlOriginal, nil
+	return "", errors.New("internal/repository/repository.go: данные отсутствуют")
 }

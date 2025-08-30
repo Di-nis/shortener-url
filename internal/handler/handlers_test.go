@@ -20,7 +20,7 @@ func TestCreateAndGetURL(t *testing.T) {
 	options := new(config.Config)
 	options.Parse()
 
-	repo := repository.NewRepo()
+	repo := repository.NewRepo(options.FileStoragePath)
 	serv := service.NewService()
 	urlUseCase := usecase.NewURLUseCase(repo, serv)
 	controller := NewСontroller(urlUseCase, options)
