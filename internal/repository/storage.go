@@ -43,14 +43,12 @@ func (p *Producer) Close() error {
 	return p.file.Close()
 }
 
-func SaveToFile(filename string, urlData URLData) error {
-	producer, err := NewProducer(filename)
-	if err != nil {return err}
+func (p *Producer) SaveToFile(urlData URLData) error {
+	err := p.WriteURL(urlData)
+	if err != nil {
+		return err
+	}
 
-	err = producer.WriteURL(urlData)
-	if err != nil {return err}
-
-	producer.Close()
 	return nil
 }
 
@@ -97,6 +95,9 @@ func (c *Consumer) LoadFromFile() ([]URLData, error) {
 		}
 		URLArray = append(URLArray, *urlData)
 	}
-	c.Close()
+	err := c.Close()
+	if err != nil {
+		return nil, err
+	}
 	return URLArray, nil
 }

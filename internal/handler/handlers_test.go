@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,20 +17,44 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCreateAndGetURL(t *testing.T) {
-	options := new(config.Config)
-	options.Parse()
+const databaseTestLog = "database_test.log"
 
-	repo := repository.NewRepo(options.FileStoragePath)
-	serv := service.NewService()
-	urlUseCase := usecase.NewURLUseCase(repo, serv)
-	controller := NewСontroller(urlUseCase, options)
+func initHandler() (http.Handler, error) {
+	cfg := &config.Config{
+		ServerAddress:   "localhost:8080",
+		BaseURL:         "http://localhost:8080",
+		FileStoragePath: databaseTestLog,
+	}
 
+	consumer, err := repository.NewConsumer(cfg.FileStoragePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init consumer: %w", err)
+	}
+
+	producer, err := repository.NewProducer(databaseTestLog)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init producer: %w", err)
+	}
+
+	storage := &repository.Storage{
+		Consumer: consumer,
+		Producer: producer,
+	}
+
+	repo := repository.NewRepo(cfg.FileStoragePath, storage)
+	svc := service.NewService()
+
+	urlUseCase := usecase.NewURLUseCase(repo, svc)
+	controller := NewСontroller(urlUseCase, cfg)
 	router := controller.CreateRouter()
 	handler := compress.GzipMiddleware(router)
+	return handler, nil
+}
+
+func TestCreateAndGetURL(t *testing.T) {
+	handler, _ := initHandler()
 
 	server := httptest.NewServer(handler)
-
 	defer server.Close()
 
 	type want struct {
@@ -62,10 +87,10 @@ func TestCreateAndGetURL(t *testing.T) {
 			},
 		},
 		{
-			name:        "TestCreateURLFromText, метод - GET, метод не соответствует требованиям",
-			body:        "https://practicum.yandex.ru",
-			method:      http.MethodGet,
-			contentType: "text/plain",
+			name:            "TestCreateURLFromText, метод - GET, метод не соответствует требованиям",
+			body:            "https://practicum.yandex.ru",
+			method:          http.MethodGet,
+			contentType:     "text/plain",
 			contentEncoding: "",
 			acceptEncoding:  "",
 			want: want{
@@ -75,10 +100,10 @@ func TestCreateAndGetURL(t *testing.T) {
 			},
 		},
 		{
-			name:        "TestCreateURLFromText, метод - POST, запрос не содержит url",
-			body:        "",
-			method:      http.MethodPost,
-			contentType: "",
+			name:            "TestCreateURLFromText, метод - POST, запрос не содержит url",
+			body:            "",
+			method:          http.MethodPost,
+			contentType:     "",
 			contentEncoding: "",
 			acceptEncoding:  "",
 			want: want{
@@ -120,10 +145,10 @@ func TestCreateAndGetURL(t *testing.T) {
 		want            want
 	}{
 		{
-			name:        "TestCreateURLFromJSON, метод - GET, метод не соответствует требованиям",
-			body:        `{"url": "https://www.sports.ru"}`,
-			method:      http.MethodGet,
-			contentType: "application/json",
+			name:            "TestCreateURLFromJSON, метод - GET, метод не соответствует требованиям",
+			body:            `{"url": "https://www.sports.ru"}`,
+			method:          http.MethodGet,
+			contentType:     "application/json",
 			contentEncoding: "",
 			acceptEncoding:  "",
 			want: want{
@@ -134,10 +159,10 @@ func TestCreateAndGetURL(t *testing.T) {
 			},
 		},
 		{
-			name:        "TestCreateURLFromJSON, метод - POST, тело запроса - пустое",
-			body:        "",
-			method:      http.MethodPost,
-			contentType: "application/json",
+			name:            "TestCreateURLFromJSON, метод - POST, тело запроса - пустое",
+			body:            "",
+			method:          http.MethodPost,
+			contentType:     "application/json",
 			contentEncoding: "",
 			acceptEncoding:  "",
 			want: want{
@@ -148,10 +173,10 @@ func TestCreateAndGetURL(t *testing.T) {
 			},
 		},
 		{
-			name:        "TestCreateURLFromJSON, метод - POST, данные не валидны",
-			body:        `{"url": 555}`,
-			method:      http.MethodPost,
-			contentType: "application/json",
+			name:            "TestCreateURLFromJSON, метод - POST, данные не валидны",
+			body:            `{"url": 555}`,
+			method:          http.MethodPost,
+			contentType:     "application/json",
 			contentEncoding: "",
 			acceptEncoding:  "",
 			want: want{

@@ -11,6 +11,7 @@ import (
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/models"
 	"github.com/Di-nis/shortener-url/internal/usecase"
+	"github.com/Di-nis/shortener-url/internal/constants"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -103,7 +104,7 @@ func (c *Controller) createURLShortFromText(res http.ResponseWriter, req *http.R
 
 	urlOriginal := string(bodyBytes)
 	urlShort, err := c.URLUseCase.CreateURL(urlOriginal)
-	if err != nil {
+	if err != nil && err == constants.ErrorURLAlreadyExist {
 		res.WriteHeader(http.StatusConflict)
 		return
 	}
@@ -130,7 +131,7 @@ func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request)
 	defer req.Body.Close()
 
 	urlOriginal, err := c.URLUseCase.GetURL(URLShort)
-	if err != nil {
+	if err != nil && err == constants.ErrorURLNotExist {
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
