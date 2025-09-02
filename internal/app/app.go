@@ -3,23 +3,19 @@ package app
 import (
 	"net/http"
 
-	"github.com/Di-nis/shortener-url/internal/config"
-	"github.com/Di-nis/shortener-url/internal/handler"
-	"github.com/Di-nis/shortener-url/internal/repository"
-	"github.com/Di-nis/shortener-url/internal/service"
-	"github.com/Di-nis/shortener-url/internal/usecase"
+	"github.com/Di-nis/shortener-url/internal/compress"
+	"github.com/Di-nis/shortener-url/internal/logger"
 )
 
 func Run() error {
-	options := new(config.Options)
-	options.Parse()
-
-	repo := repository.NewRepo()
-	svc := service.NewService()
-
-	urlUseCase := usecase.NewURLUseCase(repo, svc)
-	controller := handler.NewСontroller(urlUseCase, options)
-
-	router := controller.CreateRouter()
-	return http.ListenAndServe(options.Port, router)
+	cfg, err := initConfigAndLogger()
+	if err != nil {
+		return err
+	}
+	repo, svc, err := initStorageAndServices(cfg)
+	if err != nil {
+		return err
+	}
+	router := setupRouter(cfg, repo, svc)
+	return http.ListenAndServe(cfg.ServerAddress, logger.WithLogging(compress.GzipMiddleware(router)))
 }

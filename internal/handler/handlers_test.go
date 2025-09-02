@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/Di-nis/shortener-url/internal/compress"
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/repository"
 	"github.com/Di-nis/shortener-url/internal/service"
@@ -15,58 +17,95 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCreateAndGetURL(t *testing.T) {
-	options := new(config.Options)
-	options.Parse()
+const databaseTestLog = "database_test.log"
 
-	repo := repository.NewRepo()
-	serv := service.NewService()
-	urlUseCase := usecase.NewURLUseCase(repo, serv)
-	controller := NewСontroller(urlUseCase, options)
+func initHandler() (http.Handler, error) {
+	cfg := &config.Config{
+		ServerAddress:   "localhost:8080",
+		BaseURL:         "http://localhost:8080",
+		FileStoragePath: databaseTestLog,
+	}
 
+	consumer, err := repository.NewConsumer(cfg.FileStoragePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init consumer: %w", err)
+	}
+
+	producer, err := repository.NewProducer(databaseTestLog)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init producer: %w", err)
+	}
+
+	storage := &repository.Storage{
+		Consumer: consumer,
+		Producer: producer,
+	}
+
+	repo := repository.NewRepo(cfg.FileStoragePath, storage)
+	svc := service.NewService()
+
+	urlUseCase := usecase.NewURLUseCase(repo, svc)
+	controller := NewСontroller(urlUseCase, cfg)
 	router := controller.CreateRouter()
+	handler := compress.GzipMiddleware(router)
+	return handler, nil
+}
 
-	server := httptest.NewServer(router)
+func TestCreateAndGetURL(t *testing.T) {
+	handler, _ := initHandler()
 
+	server := httptest.NewServer(handler)
 	defer server.Close()
 
 	type want struct {
-		statusCode  int
-		response    string
-		contentType string
+		statusCode      int
+		response        string
+		contentType     string
+		contentEncoding string
 	}
 
 	testsCreate := []struct {
-		name     string
-		body     string
-		shortURL string
-		method   string
-		want     want
+		name            string
+		body            string
+		method          string
+		contentType     string
+		contentEncoding string
+		acceptEncoding  string
+		want            want
 	}{
 		{
-			name:   "TestCreateURL, метод - POST, короткий URL сформирован",
-			body:   `https://practicum.yandex.ru/`,
-			method: http.MethodPost,
+			name:            "TestCreateURLFromText, метод - POST, короткий URL сформирован",
+			body:            "https://practicum.yandex.ru",
+			method:          http.MethodPost,
+			contentType:     "text/plain",
+			contentEncoding: "",
+			acceptEncoding:  "",
 			want: want{
 				statusCode:  http.StatusCreated,
-				response:    "http://localhost:8080/5J3xKXF9",
+				response:    "http://localhost:8080/bTKNZu94",
 				contentType: "text/plain",
 			},
 		},
 		{
-			name:   "TestCreateURL, метод - GET, метод не соответствует требованиям",
-			body:   "https://practicum.yandex.ru/",
-			method: http.MethodGet,
+			name:            "TestCreateURLFromText, метод - GET, метод не соответствует требованиям",
+			body:            "https://practicum.yandex.ru",
+			method:          http.MethodGet,
+			contentType:     "text/plain",
+			contentEncoding: "",
+			acceptEncoding:  "",
 			want: want{
 				statusCode:  http.StatusMethodNotAllowed,
-				response:    ``,
+				response:    "",
 				contentType: "",
 			},
 		},
 		{
-			name:   "TestCreateURL, метод - POST, запрос не содержит url",
-			body:   ``,
-			method: http.MethodPost,
+			name:            "TestCreateURLFromText, метод - POST, запрос не содержит url",
+			body:            "",
+			method:          http.MethodPost,
+			contentType:     "",
+			contentEncoding: "",
+			acceptEncoding:  "",
 			want: want{
 				statusCode:  http.StatusBadRequest,
 				response:    "Не удалось прочитать тело запроса\n",
@@ -80,6 +119,98 @@ func TestCreateAndGetURL(t *testing.T) {
 			req := resty.New().R()
 			req.Method = tt.method
 			req.URL = server.URL
+			req.Body = tt.body
+			req.SetHeaders(map[string]string{
+				"Content-Type":     tt.contentType,
+				"Content-Encoding": tt.contentEncoding,
+				"Accept-Encoding":  tt.acceptEncoding,
+			})
+
+			resp, err := req.Send()
+
+			require.NoError(t, err, "error making HTTP request", tt.body)
+			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
+			assert.Equal(t, tt.want.response, string(resp.Body()))
+			assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"))
+		})
+	}
+
+	testsCreateJSON := []struct {
+		name            string
+		body            string
+		method          string
+		contentType     string
+		contentEncoding string
+		acceptEncoding  string
+		want            want
+	}{
+		{
+			name:            "TestCreateURLFromJSON, метод - GET, метод не соответствует требованиям",
+			body:            `{"url": "https://www.sports.ru"}`,
+			method:          http.MethodGet,
+			contentType:     "application/json",
+			contentEncoding: "",
+			acceptEncoding:  "",
+			want: want{
+				statusCode:      http.StatusMethodNotAllowed,
+				response:        "",
+				contentType:     "",
+				contentEncoding: "",
+			},
+		},
+		{
+			name:            "TestCreateURLFromJSON, метод - POST, тело запроса - пустое",
+			body:            "",
+			method:          http.MethodPost,
+			contentType:     "application/json",
+			contentEncoding: "",
+			acceptEncoding:  "",
+			want: want{
+				statusCode:      http.StatusBadRequest,
+				response:        "Не удалось прочитать тело запроса\n",
+				contentType:     "text/plain; charset=utf-8",
+				contentEncoding: "",
+			},
+		},
+		{
+			name:            "TestCreateURLFromJSON, метод - POST, данные не валидны",
+			body:            `{"url": 555}`,
+			method:          http.MethodPost,
+			contentType:     "application/json",
+			contentEncoding: "",
+			acceptEncoding:  "",
+			want: want{
+				statusCode:      http.StatusBadRequest,
+				response:        "json: cannot unmarshal number into Go struct field Request.url of type string\n",
+				contentType:     "text/plain; charset=utf-8",
+				contentEncoding: "",
+			},
+		},
+		{
+			name:            "TestCreateURLFromJSON, метод - POST, короткий URL сформирован",
+			body:            `{"url": "https://www.sports.ru"}`,
+			method:          http.MethodPost,
+			contentType:     "application/json",
+			contentEncoding: "",
+			acceptEncoding:  "",
+			want: want{
+				statusCode:      http.StatusCreated,
+				response:        `{"result":"http://localhost:8080/4BeKySvE"}`,
+				contentType:     "application/json",
+				contentEncoding: "gzip",
+			},
+		},
+	}
+
+	for _, tt := range testsCreateJSON {
+		t.Run(tt.method, func(t *testing.T) {
+			req := resty.New().R()
+			req.Method = tt.method
+			req.URL = server.URL + "/api/shorten"
+			req.Header.Set("Content-Type", tt.contentType)
+			req.Header.Set("Content-Encoding", tt.contentEncoding)
+			req.Header.Set("Accept-Encoding", tt.acceptEncoding)
+
 			req.Body = tt.body
 
 			resp, err := req.Send()
@@ -98,18 +229,28 @@ func TestCreateAndGetURL(t *testing.T) {
 		want     want
 	}{
 		{
-			name:     "TestGetURL, метод - Get, адрес - существующий в БД адрес",
-			shortURL: "5J3xKXF9",
+			name:     "TestGetURL, метод - Get, адрес - существующий в БД адрес, кейс 1",
+			shortURL: "bTKNZu94",
 			method:   http.MethodGet,
 			want: want{
 				statusCode:  http.StatusTemporaryRedirect,
-				response:    `https://practicum.yandex.ru/`,
+				response:    "https://practicum.yandex.ru",
+				contentType: "text/plain",
+			},
+		},
+		{
+			name:     "TestGetURL, метод - Get, адрес - существующий в БД адрес, кейс 2",
+			shortURL: "4BeKySvE",
+			method:   http.MethodGet,
+			want: want{
+				statusCode:  http.StatusTemporaryRedirect,
+				response:    "https://www.sports.ru",
 				contentType: "text/plain",
 			},
 		},
 		{
 			name:     "TestGetURL, метод - Post, адрес - существующий в БД адрес",
-			shortURL: "5J3xKXF9",
+			shortURL: "bTKNZu94",
 			method:   http.MethodPost,
 			want: want{
 				statusCode:  http.StatusMethodNotAllowed,
@@ -142,7 +283,6 @@ func TestCreateAndGetURL(t *testing.T) {
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
 			assert.Equal(t, tt.want.response, string(resp.Header().Get("Location")))
 			assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"))
-
 		})
 	}
 }
