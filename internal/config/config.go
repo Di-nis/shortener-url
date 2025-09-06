@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+
 	"github.com/joho/godotenv"
 
 	"github.com/caarlos0/env/v6"
@@ -12,6 +13,7 @@ type Config struct {
 	BaseURL         string `env:"BASE_URL"`
 	LogLevel        string `env:"LOG_LEVEL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	DataBaseDSN     string `env:"DATABASE_DSN"`
 }
 
 func (a *Config) Parse() {
@@ -22,8 +24,9 @@ func (a *Config) Parse() {
 	// второй приоритет - из аргументов командной строки
 	var serverAddress, baseURL, fileStoragePath string
 	flag.StringVar(&serverAddress, "a", "localhost:8080", "URL")
-	flag.StringVar(&baseURL, "b", "http://localhost:8080", "base URL")
-	flag.StringVar(&fileStoragePath, "f", "database.log", "File storage path")
+	flag.StringVar(&baseURL, "b", "http://localhost:8080", "Base URL")
+	flag.StringVar(&fileStoragePath, "f", "database.log", "File Storage Path")
+	flag.StringVar(&fileStoragePath, "d", "localhost:5432:postgres:postgres:urls", "Database Source Name")
 
 	flag.Parse()
 

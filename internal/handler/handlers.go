@@ -9,11 +9,18 @@ import (
 	"reflect"
 
 	"github.com/Di-nis/shortener-url/internal/config"
-	"github.com/Di-nis/shortener-url/internal/models"
-	"github.com/Di-nis/shortener-url/internal/usecase"
 	"github.com/Di-nis/shortener-url/internal/constants"
+	"github.com/Di-nis/shortener-url/internal/models"
+	"github.com/Di-nis/shortener-url/internal/repository"
+	"github.com/Di-nis/shortener-url/internal/usecase"
 
 	"github.com/go-chi/chi/v5"
+
+	"database/sql"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"context"
+	"time"
 )
 
 // Controller - структура HTTP-хендлера.
@@ -37,6 +44,7 @@ func (c *Controller) CreateRouter() http.Handler {
 	router.Post("/api/shorten", c.createURLShortFromJSON)
 	router.Post("/", c.createURLShortFromText)
 	router.Get("/{short_url}", c.getlURLOriginal)
+	router.Get("/ping", c.pingDB)
 	return router
 }
 
@@ -138,4 +146,25 @@ func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request)
 	res.Header().Add("Location", urlOriginal)
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusTemporaryRedirect)
+}
+
+func (c *Controller) pingDB(res http.ResponseWriter, _ *http.Request) {
+	dbConfig := repository.NewPostgesDB(c.Config.DataBaseDSN)
+
+	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
+                      dbConfig.Localhost, dbConfig.User, dbConfig.Password, dbConfig.Name)
+
+    db, err := sql.Open("pgx", ps)
+    if err != nil {
+        panic(err)
+    }
+    defer db.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+    defer cancel()
+    if err = db.PingContext(ctx); err != nil {
+        res.WriteHeader(http.StatusInternalServerError)
+    }
+
+	res.WriteHeader(http.StatusOK)
 }

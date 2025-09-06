@@ -12,6 +12,9 @@ import (
 	"github.com/Di-nis/shortener-url/internal/usecase"
 
 	"go.uber.org/zap"
+
+	// "database/sql"
+    // _ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func initConfigAndLogger() (*config.Config, error) {
@@ -41,6 +44,17 @@ func initStorageAndServices(cfg *config.Config) (*repository.Repo, *service.Serv
 		Consumer: consumer,
 		Producer: producer,
 	}
+
+	// dbConfig := repository.NewPostgesDB(cfg.DataBaseDSN)
+
+	// ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
+    //                   dbConfig.Localhost, dbConfig.User, dbConfig.Password, dbConfig.Name)
+
+    // db, err := sql.Open("pgx", ps)
+    // if err != nil {
+    //     panic(err)
+    // }
+    // defer db.Close()
 
 	repo := repository.NewRepo(cfg.FileStoragePath, storage)
 	repo.URLOriginalAndShort, err = storage.Consumer.LoadFromFile()
