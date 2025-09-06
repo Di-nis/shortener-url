@@ -11,7 +11,6 @@ import (
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/models"
-	"github.com/Di-nis/shortener-url/internal/repository"
 	"github.com/Di-nis/shortener-url/internal/usecase"
 
 	"github.com/go-chi/chi/v5"
@@ -149,11 +148,7 @@ func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request)
 }
 
 func (c *Controller) pingDB(res http.ResponseWriter, _ *http.Request) {
-	dbConfig := repository.NewPostgesDB(c.Config.DataBaseDSN)
-
-	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-                      dbConfig.Localhost, dbConfig.User, dbConfig.Password, dbConfig.Name)
-
+	ps := c.Config.DataBaseDSN
     db, err := sql.Open("pgx", ps)
     if err != nil {
         panic(err)

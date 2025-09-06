@@ -26,7 +26,7 @@ func (a *Config) Parse() {
 	flag.StringVar(&serverAddress, "a", "localhost:8080", "URL")
 	flag.StringVar(&baseURL, "b", "http://localhost:8080", "Base URL")
 	flag.StringVar(&fileStoragePath, "f", "database.log", "File Storage Path")
-	flag.StringVar(&fileStoragePath, "d", "localhost:5432:postgres:postgres:urls", "Database Source Name")
+	flag.StringVar(&fileStoragePath, "d", "host=localhost user=postgres password=postgres dbname=urls sslmode=disable", "Database Source Name")
 
 	flag.Parse()
 
