@@ -22,11 +22,11 @@ func (a *Config) Parse() {
 	_ = env.Parse(a)
 
 	// второй приоритет - из аргументов командной строки
-	var serverAddress, baseURL, fileStoragePath string
+	var serverAddress, baseURL, fileStoragePath, dataBaseDSN string
 	flag.StringVar(&serverAddress, "a", "localhost:8080", "URL")
 	flag.StringVar(&baseURL, "b", "http://localhost:8080", "Base URL")
 	flag.StringVar(&fileStoragePath, "f", "database.log", "File Storage Path")
-	flag.StringVar(&fileStoragePath, "d", "host=localhost user=postgres password=postgres dbname=urls sslmode=disable", "Database Source Name")
+	flag.StringVar(&dataBaseDSN, "d", "", "Database Source Name")
 
 	flag.Parse()
 
@@ -38,6 +38,10 @@ func (a *Config) Parse() {
 	}
 	if a.FileStoragePath == "" {
 		a.FileStoragePath = fileStoragePath
+	}
+
+	if a.DataBaseDSN == "" {
+		a.DataBaseDSN = dataBaseDSN
 	}
 	// if a.LogLevel == "" {
 	//  a.LogLevel = logLevel
