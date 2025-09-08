@@ -152,6 +152,10 @@ func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request)
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	res.Header().Add("Location", urlOriginal)
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusTemporaryRedirect)

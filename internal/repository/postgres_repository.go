@@ -3,11 +3,10 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"errors"
+	"strings"
+
 	"github.com/Di-nis/shortener-url/internal/constants"
 	_ "github.com/jackc/pgx/v5/stdlib"
-    "strings"
-    // "time"
 )
 
 type Config struct {
@@ -20,7 +19,6 @@ type Config struct {
 }
 
 func NewConfig(dataBaseDSN string) *Config {
-    // host=localhost port=5432 user=postgres password=postgres dbname=urls sslmode=disable
 	dataBaseDSNArray := strings.Split(dataBaseDSN, " ")
 	localhost, post, user, password, name, sslMode := dataBaseDSNArray[0], dataBaseDSNArray[1], dataBaseDSNArray[2], dataBaseDSNArray[3], dataBaseDSNArray[4], dataBaseDSNArray[5]
 	return &Config{
@@ -49,9 +47,10 @@ func (repo *RepoPostgres) Create(ctx context.Context, urlOriginal, urlShort stri
     db, err := sql.Open("pgx", repo.configStr)
 	if err != nil {return err}
 	defer db.Close()
+
     // тут должно быть result, err
 	_, err = db.ExecContext(ctx, "INSERT INTO urls (original, short) VALUES ($1, $2)", urlOriginal, urlShort)
-    // написать возврат ошибки, когда запись уже существует
+    // написать более подробно обработку ошибок
 	if err != nil {
 	    return err
 	}
@@ -63,15 +62,11 @@ func (repo *RepoPostgres) Get(ctx context.Context, urlShort string) (string, err
     db, err := sql.Open("pgx", repo.configStr)
 	if err != nil {return "", err}
 	defer db.Close()
-	row := db.QueryRowContext(ctx, "SELECT original FROM urls WHERE short = ?", urlShort)
+	row := db.QueryRowContext(ctx, "SELECT original FROM urls WHERE short = $1", urlShort)
 
 	var URLOriginal string
 	err = row.Scan(&URLOriginal)
 	if err != nil {
-		// в константах создать ошибку
-		return "", errors.New("new errors get")
-	}
-	if URLOriginal == "" {
 		return "", constants.ErrorURLNotExist
 	}
 	return URLOriginal, nil
