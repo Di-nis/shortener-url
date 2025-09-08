@@ -1,7 +1,6 @@
 package app
 
 import (
-	// "database/sql"
 	"fmt"
 	"net/http"
 
@@ -27,18 +26,13 @@ func initConfigAndLogger() (*config.Config, error) {
 	return config, nil
 }
 
-func initStorageByPostgres(cfg *config.Config) (*repository.RepoPostgres, error) {
-	// db, err := sql.Open("pgx", cfg.DataBaseDSN)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// defer db.Close()
-	config := repository.NewConfig(cfg.DataBaseDSN)
-	repo := repository.NewRepoPostgres(config, cfg.DataBaseDSN)
+func initRepoPostgres(cfg *config.Config) (*repository.RepoPostgres, error) {
+	// config := repository.NewConfig(cfg.DataBaseDSN)
+	repo := repository.NewRepoPostgres(cfg.DataBaseDSN)
 	return repo, nil
 }
 
-func initStorageByFile(cfg *config.Config) (*repository.Repo, error) {
+func initRepoFile(cfg *config.Config) (*repository.RepoFile, error) {
 	consumer, err := repository.NewConsumer(cfg.FileStoragePath)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка инициализации consumer: %w", err)
@@ -54,7 +48,7 @@ func initStorageByFile(cfg *config.Config) (*repository.Repo, error) {
 		Producer: producer,
 	}
 
-	repo := repository.NewRepo(cfg.FileStoragePath, storage)
+	repo := repository.NewRepoFile(cfg.FileStoragePath, storage)
 	repo.URLOriginalAndShort, err = storage.Consumer.LoadFromFile()
 	if err != nil {
 		return nil, fmt.Errorf("ошибка загрузки данных из файла-хранилища: %w", err)
@@ -63,11 +57,20 @@ func initStorageByFile(cfg *config.Config) (*repository.Repo, error) {
 	return repo, nil
 }
 
+func initRepoMemory() (*repository.RepoMemory, error) {
+	repo := repository.NewRepoMemory()
+	return repo, nil
+}
+
 func initStorage(cfg *config.Config) (usecase.URLRepository, error) {
-	if cfg.DataBaseDSN == "" {
-		return initStorageByFile(cfg)
+	switch {
+	case cfg.DataBaseDSN != "":
+		return initRepoPostgres(cfg)
+	case cfg.FileStoragePath != "":
+		return initRepoFile(cfg)
+	default:
+		return initRepoMemory()
 	}
-	return initStorageByPostgres(cfg)
 }
 
 func setupRouter(cfg *config.Config, repo usecase.URLRepository, svc *service.Service) http.Handler {

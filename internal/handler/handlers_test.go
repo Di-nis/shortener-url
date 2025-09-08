@@ -41,7 +41,7 @@ func initHandler() (http.Handler, error) {
 		Producer: producer,
 	}
 
-	repo := repository.NewRepo(cfg.FileStoragePath, storage)
+	repo := repository.NewRepoFile(cfg.FileStoragePath, storage)
 	svc := service.NewService()
 
 	urlUseCase := usecase.NewURLUseCase(repo, svc)

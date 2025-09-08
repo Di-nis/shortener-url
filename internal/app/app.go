@@ -2,7 +2,6 @@ package app
 
 import (
 	"net/http"
-	// "context"
 
 	"github.com/Di-nis/shortener-url/internal/compress"
 	"github.com/Di-nis/shortener-url/internal/logger"
@@ -10,12 +9,10 @@ import (
 )
 
 func Run() error {
-	// ctx := context.Background()
 	cfg, err := initConfigAndLogger()
 	if err != nil {
 		return err
 	}
-	// написать реализацию выбора подключения к базе данных, postgres или хранение в файле
 	repo, err := initStorage(cfg)
 	if err != nil {
 		return err

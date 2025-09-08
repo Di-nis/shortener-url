@@ -32,13 +32,13 @@ func NewConfig(dataBaseDSN string) *Config {
 }
 
 type RepoPostgres struct {
-	config *Config
+	// config *Config
     configStr string
 }
 
-func NewRepoPostgres(config *Config, configStr string) *RepoPostgres {
+func NewRepoPostgres(configStr string) *RepoPostgres {
 	return &RepoPostgres{
-		config: config,
+		// config: config,
         configStr: configStr,
 	}
 }

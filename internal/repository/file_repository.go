@@ -1,8 +1,9 @@
 package repository
 
 import (
-	"github.com/Di-nis/shortener-url/internal/constants"
 	"context"
+
+	"github.com/Di-nis/shortener-url/internal/constants"
 )
 
 type WriteCloser interface {
@@ -27,16 +28,16 @@ type URLData struct {
 	URLOriginal string `json:"url_original"`
 }
 
-// Repo - структура базы данных.
-type Repo struct {
+// RepoFile - структура базы данных.
+type RepoFile struct {
 	URLOriginalAndShort []URLData
 	FileStoragePath     string
 	Storage             *Storage
 }
 
-// NewRepo - создание структуры Repo.
-func NewRepo(fileStoragePath string, storage *Storage) *Repo {
-	return &Repo{
+// NewRepoFile - создание структуры Repo.
+func NewRepoFile(fileStoragePath string, storage *Storage) *RepoFile {
+	return &RepoFile{
 		URLOriginalAndShort: make([]URLData, 0),
 		FileStoragePath:     fileStoragePath,
 		Storage:             storage,
@@ -44,7 +45,7 @@ func NewRepo(fileStoragePath string, storage *Storage) *Repo {
 }
 
 // Create - сохранение URL в базу данных.
-func (repo *Repo) Create(ctx context.Context, urlOriginal, urlShort string) error {
+func (repo *RepoFile) Create(ctx context.Context, urlOriginal, urlShort string) error {
 	for _, urlData := range repo.URLOriginalAndShort {
 		if urlData.URLOriginal == urlOriginal {
 			return constants.ErrorURLAlreadyExist
@@ -66,7 +67,7 @@ func (repo *Repo) Create(ctx context.Context, urlOriginal, urlShort string) erro
 }
 
 // Get - получение оригинального URL из базы данных.
-func (repo *Repo) Get(ctx context.Context, urlShort string) (string, error) {
+func (repo *RepoFile) Get(ctx context.Context, urlShort string) (string, error) {
 	for _, urlData := range repo.URLOriginalAndShort {
 		if urlData.URLShort == urlShort {
 			return urlData.URLOriginal, nil
