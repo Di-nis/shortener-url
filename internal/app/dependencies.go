@@ -1,6 +1,7 @@
 package app
 
 import (
+	// "database/sql"
 	"fmt"
 	"net/http"
 
@@ -26,15 +27,26 @@ func initConfigAndLogger() (*config.Config, error) {
 	return config, nil
 }
 
-func initStorageAndServices(cfg *config.Config) (*repository.Repo, *service.Service, error) {
+func initStorageByPostgres(cfg *config.Config) (*repository.RepoPostgres, error) {
+	// db, err := sql.Open("pgx", cfg.DataBaseDSN)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// defer db.Close()
+	config := repository.NewConfig(cfg.DataBaseDSN)
+	repo := repository.NewRepoPostgres(config, cfg.DataBaseDSN)
+	return repo, nil
+}
+
+func initStorageByFile(cfg *config.Config) (*repository.Repo, error) {
 	consumer, err := repository.NewConsumer(cfg.FileStoragePath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("ошибка инициализации consumer: %w", err)
+		return nil, fmt.Errorf("ошибка инициализации consumer: %w", err)
 	}
 
 	producer, err := repository.NewProducer(cfg.FileStoragePath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("ошибка инициализации producer: %w", err)
+		return nil, fmt.Errorf("ошибка инициализации producer: %w", err)
 	}
 
 	storage := &repository.Storage{
@@ -45,14 +57,20 @@ func initStorageAndServices(cfg *config.Config) (*repository.Repo, *service.Serv
 	repo := repository.NewRepo(cfg.FileStoragePath, storage)
 	repo.URLOriginalAndShort, err = storage.Consumer.LoadFromFile()
 	if err != nil {
-		return nil, nil, fmt.Errorf("ошибка загрузки данных из файла-хранилища: %w", err)
+		return nil, fmt.Errorf("ошибка загрузки данных из файла-хранилища: %w", err)
 	}
 
-	svc := service.NewService()
-	return repo, svc, nil
+	return repo, nil
 }
 
-func setupRouter(cfg *config.Config, repo *repository.Repo, svc *service.Service) http.Handler {
+func initStorage(cfg *config.Config) (usecase.URLRepository, error) {
+	if cfg.DataBaseDSN == "" {
+		return initStorageByFile(cfg)
+	}
+	return initStorageByPostgres(cfg)
+}
+
+func setupRouter(cfg *config.Config, repo usecase.URLRepository, svc *service.Service) http.Handler {
 	urlUseCase := usecase.NewURLUseCase(repo, svc)
 	controller := handler.NewСontroller(urlUseCase, cfg)
 	return controller.CreateRouter()

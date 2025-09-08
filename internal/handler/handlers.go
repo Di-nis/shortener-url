@@ -43,12 +43,15 @@ func (c *Controller) CreateRouter() http.Handler {
 	router.Post("/api/shorten", c.createURLShortFromJSON)
 	router.Post("/", c.createURLShortFromText)
 	router.Get("/{short_url}", c.getlURLOriginal)
-	router.Get("/ping", c.pingDB)
+	// router.Get("/ping", c.pingDB)
 	return router
 }
 
 // createURLShortFromJSON - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
 func (c *Controller) createURLShortFromJSON(res http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
+    defer cancel()
+
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -72,7 +75,7 @@ func (c *Controller) createURLShortFromJSON(res http.ResponseWriter, req *http.R
 		return
 	}
 
-	urlShort, err := c.URLUseCase.CreateURL(request.URLOriginal)
+	urlShort, err := c.URLUseCase.CreateURL(ctx, request.URLOriginal)
 	if err != nil {
 		res.WriteHeader(http.StatusConflict)
 		return
@@ -96,6 +99,9 @@ func (c *Controller) createURLShortFromJSON(res http.ResponseWriter, req *http.R
 
 // createURLShortFromText - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
 func (c *Controller) createURLShortFromText(res http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
+    defer cancel()
+
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -110,7 +116,8 @@ func (c *Controller) createURLShortFromText(res http.ResponseWriter, req *http.R
 	defer req.Body.Close()
 
 	urlOriginal := string(bodyBytes)
-	urlShort, err := c.URLUseCase.CreateURL(urlOriginal)
+	urlShort, err := c.URLUseCase.CreateURL(ctx, urlOriginal)
+	fmt.Println(err)
 	if err != nil && err == constants.ErrorURLAlreadyExist {
 		res.WriteHeader(http.StatusConflict)
 		return
@@ -129,6 +136,9 @@ func (c *Controller) createURLShortFromText(res http.ResponseWriter, req *http.R
 
 // getlURLOriginal - обрабатка HTTP-запроса: тип запроcа - GET, вовзвращает оригинальный URL.
 func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
+    defer cancel()
+
 	if req.Method != http.MethodGet {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -137,7 +147,7 @@ func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request)
 	URLShort := chi.URLParam(req, "short_url")
 	defer req.Body.Close()
 
-	urlOriginal, err := c.URLUseCase.GetURL(URLShort)
+	urlOriginal, err := c.URLUseCase.GetURL(ctx, URLShort)
 	if err != nil && err == constants.ErrorURLNotExist {
 		res.WriteHeader(http.StatusNotFound)
 		return
@@ -147,17 +157,16 @@ func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request)
 	res.WriteHeader(http.StatusTemporaryRedirect)
 }
 
-func (c *Controller) pingDB(res http.ResponseWriter, _ *http.Request) {
-	ps := c.Config.DataBaseDSN
-    db, err := sql.Open("pgx", ps)
-    if err != nil {
-        panic(err)
-    }
-    defer db.Close()
+func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
+	db, err := sql.Open("pgx", c.Config.DataBaseDSN)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
     defer cancel()
-    if err = db.PingContext(ctx); err != nil {
+    if err := db.PingContext(ctx); err != nil {
         res.WriteHeader(http.StatusInternalServerError)
     }
 

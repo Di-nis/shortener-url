@@ -2,6 +2,7 @@ package repository
 
 import (
 	"github.com/Di-nis/shortener-url/internal/constants"
+	"context"
 )
 
 type WriteCloser interface {
@@ -43,7 +44,7 @@ func NewRepo(fileStoragePath string, storage *Storage) *Repo {
 }
 
 // Create - сохранение URL в базу данных.
-func (repo *Repo) Create(urlOriginal, urlShort string) error {
+func (repo *Repo) Create(ctx context.Context, urlOriginal, urlShort string) error {
 	for _, urlData := range repo.URLOriginalAndShort {
 		if urlData.URLOriginal == urlOriginal {
 			return constants.ErrorURLAlreadyExist
@@ -65,7 +66,7 @@ func (repo *Repo) Create(urlOriginal, urlShort string) error {
 }
 
 // Get - получение оригинального URL из базы данных.
-func (repo *Repo) Get(urlShort string) (string, error) {
+func (repo *Repo) Get(ctx context.Context, urlShort string) (string, error) {
 	for _, urlData := range repo.URLOriginalAndShort {
 		if urlData.URLShort == urlShort {
 			return urlData.URLOriginal, nil
