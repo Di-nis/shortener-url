@@ -43,7 +43,7 @@ func (c *Controller) CreateRouter() http.Handler {
 	router.Post("/api/shorten", c.createURLShortFromJSON)
 	router.Post("/", c.createURLShortFromText)
 	router.Get("/{short_url}", c.getlURLOriginal)
-	// router.Get("/ping", c.pingDB)
+	router.Get("/ping", c.pingDB)
 	return router
 }
 
