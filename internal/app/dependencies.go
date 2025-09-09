@@ -27,8 +27,14 @@ func initConfigAndLogger() (*config.Config, error) {
 }
 
 func initRepoPostgres(cfg *config.Config) (*repository.RepoPostgres, error) {
-	// config := repository.NewConfig(cfg.DataBaseDSN)
 	repo := repository.NewRepoPostgres(cfg.DataBaseDSN)
+
+	// выполнение миграций
+	err := repo.Migrations()
+	if err != nil {
+		panic(err)
+	}
+
 	return repo, nil
 }
 
