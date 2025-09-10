@@ -4,17 +4,18 @@ import (
 	"context"
 
 	"github.com/Di-nis/shortener-url/internal/constants"
+	"github.com/Di-nis/shortener-url/internal/models"
 )
 
 type WriteCloser interface {
-	WriteURL(URLData) error
-	SaveToFile(URLData) error
+	WriteURL(models.URL) error
+	SaveToFile(models.URL) error
 	Close() error
 }
 
 type ReadCloser interface {
-	ReadURL() (*URLData, error)
-	LoadFromFile() ([]URLData, error)
+	ReadURL() (*models.URL, error)
+	LoadFromFile() ([]models.URL, error)
 	Close() error
 }
 
@@ -23,14 +24,9 @@ type Storage struct {
 	Consumer ReadCloser
 }
 
-type URLData struct {
-	URLShort    string `json:"url_short"`
-	URLOriginal string `json:"url_original"`
-}
-
 // RepoFile - структура базы данных.
 type RepoFile struct {
-	URLOriginalAndShort []URLData
+	URLOriginalAndShort []models.URL
 	FileStoragePath     string
 	Storage             *Storage
 }
@@ -38,7 +34,7 @@ type RepoFile struct {
 // NewRepoFile - создание структуры Repo.
 func NewRepoFile(fileStoragePath string, storage *Storage) *RepoFile {
 	return &RepoFile{
-		URLOriginalAndShort: make([]URLData, 0),
+		URLOriginalAndShort: make([]models.URL, 0),
 		FileStoragePath:     fileStoragePath,
 		Storage:             storage,
 	}
@@ -52,7 +48,7 @@ func (repo *RepoFile) Create(ctx context.Context, urlOriginal, urlShort string) 
 		}
 	}
 
-	urlData := URLData{
+	urlData := models.URL{
 		URLShort:    urlShort,
 		URLOriginal: urlOriginal,
 	}

@@ -4,7 +4,15 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+
+	"github.com/Di-nis/shortener-url/internal/models"
 )
+
+type URLDataFile struct {
+	ID          string `json:"uuid"`
+	URLShort    string `json:"url_short"`
+	URLOriginal string `json:"url_original"`
+}
 
 type Producer struct {
 	file   *os.File
@@ -22,7 +30,7 @@ func NewProducer(filename string) (*Producer, error) {
 	}, nil
 }
 
-func (p *Producer) WriteURL(urlData URLData) error {
+func (p *Producer) WriteURL(urlData models.URL) error {
 	data, err := json.Marshal(&urlData)
 	if err != nil {
 		return err
@@ -43,7 +51,7 @@ func (p *Producer) Close() error {
 	return p.file.Close()
 }
 
-func (p *Producer) SaveToFile(urlData URLData) error {
+func (p *Producer) SaveToFile(urlData models.URL) error {
 	err := p.WriteURL(urlData)
 	if err != nil {
 		return err
@@ -69,10 +77,10 @@ func NewConsumer(filename string) (*Consumer, error) {
 	}, nil
 }
 
-func (c *Consumer) ReadURL() (*URLData, error) {
+func (c *Consumer) ReadURL() (*models.URL, error) {
 	data := c.scanner.Bytes()
 
-	urlData := URLData{}
+	urlData := models.URL{}
 	err := json.Unmarshal(data, &urlData)
 	if err != nil {
 		return nil, err
@@ -85,8 +93,8 @@ func (c *Consumer) Close() error {
 	return c.file.Close()
 }
 
-func (c *Consumer) LoadFromFile() ([]URLData, error) {
-	URLArray := make([]URLData, 0)
+func (c *Consumer) LoadFromFile() ([]models.URL, error) {
+	URLArray := make([]models.URL, 0)
 
 	for c.scanner.Scan() {
 		urlData, err := c.ReadURL()

@@ -2,18 +2,20 @@ package repository
 
 import (
 	"context"
+
 	"github.com/Di-nis/shortener-url/internal/constants"
+	"github.com/Di-nis/shortener-url/internal/models"
 )
 
 // RepoMemory - структура базы данных.
 type RepoMemory struct {
-	URLOriginalAndShort []URLData
+	URLOriginalAndShort []models.URL
 }
 
 // NewRepoMemory - создание структуры Repo.
 func NewRepoMemory() *RepoMemory {
 	return &RepoMemory{
-		URLOriginalAndShort: make([]URLData, 0),
+		URLOriginalAndShort: make([]models.URL, 0),
 	}
 }
 
@@ -25,7 +27,7 @@ func (repo *RepoMemory) Create(ctx context.Context, urlOriginal, urlShort string
 		}
 	}
 
-	urlData := URLData{
+	urlData := models.URL{
 		URLShort:    urlShort,
 		URLOriginal: urlOriginal,
 	}
