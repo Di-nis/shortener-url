@@ -79,10 +79,10 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 		return
 	}
 
-	// тут добавить base_url
-	for idx, url := range urls {
-		urls[idx].Short = fmt.Sprintf("%s/%s", c.Config.BaseURL, url.Short)
-	}
+	addBaseURLToShort(c.Config.BaseURL, urls)
+	// for idx, url := range urls {
+	// 	urls[idx].Short = fmt.Sprintf("%s/%s", c.Config.BaseURL, url.Short)
+	// }
 
 	bodyResult, err := json.Marshal(urls)
 	if err != nil {
@@ -133,8 +133,9 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 		res.WriteHeader(http.StatusConflict)
 		return
 	}
+
+	addBaseURLToShort(c.Config.BaseURL, urlsOut)
 	url = models.URLCopyOne(urlsOut[0])
-	url.Short = fmt.Sprintf("%s/%s", c.Config.BaseURL, url.Short)
 
 	bodyResult, err := json.Marshal(url)
 	if err != nil {
