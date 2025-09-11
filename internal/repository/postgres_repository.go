@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 
+	"errors"
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/models"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
-	"errors"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/lib/pq"
@@ -26,17 +26,23 @@ func NewRepoPostgres(dataSourceName string) *RepoPostgres {
 
 func (repo *RepoPostgres) Migrations() error {
 	db, err := sql.Open("postgres", repo.dataSourceName)
-	if err != nil {return  err}
+	if err != nil {
+		return err
+	}
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
-	if err != nil {return  err}
+	if err != nil {
+		return err
+	}
 
 	m, err := migrate.NewWithDatabaseInstance(
 		"file:migrations",
 		"postgres",
 		driver)
 
-	if err != nil {return  err}
+	if err != nil {
+		return err
+	}
 	m.Up()
 	return nil
 }
@@ -64,9 +70,9 @@ func (repo *RepoPostgres) Create(ctx context.Context, urls []models.URL) error {
 	for _, url := range urls {
 		_, err = stmt.ExecContext(ctx, url.Original, url.Short)
 	}
-		if err != nil {
-			return err
-		}
+	if err != nil {
+		return err
+	}
 	// return result.LastInsertId()
 	return tx.Commit()
 }

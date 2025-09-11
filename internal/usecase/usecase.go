@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	// "fmt"
 
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/models"
@@ -12,7 +11,6 @@ import (
 // URLRepository - интерфейс для базы данных.
 type URLRepository interface {
 	Create(context.Context, []models.URL) error
-	// Create(context.Context, string, string) error
 	Get(context.Context, string) (string, error)
 }
 
@@ -30,7 +28,7 @@ func NewURLUseCase(repo URLRepository, service *service.Service) *URLUseCase {
 	}
 }
 
-func MyFunc(urlsIn any) []models.URL {
+func convertToSingleType(urlsIn any) []models.URL {
 	url1, ok1 := urlsIn.([]models.URL)
 	if ok1 {
 		return url1
@@ -51,7 +49,7 @@ func MyFunc(urlsIn any) []models.URL {
 // CreateURL - создание короткого URL и его запись в базу данных.
 func (urlUserCase *URLUseCase) CreateURL(ctx context.Context, urlsIn any) ([]models.URL, error) {
 	var (
-		urls    = MyFunc(urlsIn)
+		urls    = convertToSingleType(urlsIn)
 		idxTemp int
 	)
 
@@ -60,7 +58,7 @@ func (urlUserCase *URLUseCase) CreateURL(ctx context.Context, urlsIn any) ([]mod
 
 		if idx%1000 == 0 || idx == len(urls)-1 {
 			urlsTemp := urls[idxTemp : idx+1]
-			idxTemp = idx+1
+			idxTemp = idx + 1
 
 			err := urlUserCase.Repo.Create(ctx, urlsTemp)
 			if err != nil {

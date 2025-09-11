@@ -80,9 +80,6 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 	}
 
 	addBaseURLToShort(c.Config.BaseURL, urls)
-	// for idx, url := range urls {
-	// 	urls[idx].Short = fmt.Sprintf("%s/%s", c.Config.BaseURL, url.Short)
-	// }
 
 	bodyResult, err := json.Marshal(urls)
 	if err != nil {
@@ -119,7 +116,7 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 	defer req.Body.Close()
 
 	var (
-		url   models.URLCopyOne
+		url     models.URLCopyOne
 		urlsOut []models.URL
 	)
 
