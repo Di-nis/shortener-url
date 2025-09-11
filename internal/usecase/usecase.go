@@ -60,7 +60,7 @@ func (urlUserCase *URLUseCase) CreateURL(ctx context.Context, urlsIn any) ([]mod
 
 		if idx%1000 == 0 || idx == len(urls)-1 {
 			urlsTemp := urls[idxTemp : idx+1]
-			idxTemp = idx
+			idxTemp = idx+1
 
 			err := urlUserCase.Repo.Create(ctx, urlsTemp)
 			if err != nil {
