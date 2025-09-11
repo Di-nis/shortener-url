@@ -49,9 +49,9 @@ type URLCopyOne struct {
 
 func (url URLCopyOne) MarshalJSON() ([]byte, error) {
 	urlAlias := struct {
-		Short    string `json:"result"`
+		Short string `json:"result"`
 	}{
-		Short:    url.Short,
+		Short: url.Short,
 	}
 
 	return json.Marshal(urlAlias)
@@ -69,6 +69,12 @@ func (url *URLCopyOne) UnmarshalJSON(data []byte) error {
 	}
 	url.Original = urlAlias.Original
 	return nil
+}
+
+type URLCopyTwo struct {
+	ID       string `json:"uuid"`
+	Short    string `json:"url_short"`
+	Original string `json:"url_original"`
 }
 
 type Request struct {

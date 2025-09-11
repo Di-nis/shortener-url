@@ -8,12 +8,6 @@ import (
 	"github.com/Di-nis/shortener-url/internal/models"
 )
 
-type URLDataFile struct {
-	ID          string `json:"uuid"`
-	URLShort    string `json:"url_short"`
-	URLOriginal string `json:"url_original"`
-}
-
 type Producer struct {
 	file   *os.File
 	writer *bufio.Writer
@@ -30,8 +24,9 @@ func NewProducer(filename string) (*Producer, error) {
 	}, nil
 }
 
-func (p *Producer) WriteURL(urlData models.URL) error {
-	data, err := json.Marshal(&urlData)
+func (p *Producer) WriteURL(url models.URL) error {
+	urlTypeTwo := models.URLCopyTwo(url)
+	data, err := json.Marshal(&urlTypeTwo)
 	if err != nil {
 		return err
 	}
@@ -80,13 +75,14 @@ func NewConsumer(filename string) (*Consumer, error) {
 func (c *Consumer) ReadURL() (*models.URL, error) {
 	data := c.scanner.Bytes()
 
-	urlData := models.URL{}
-	err := json.Unmarshal(data, &urlData)
+	urlsTypeTwo := models.URLCopyTwo{}
+	err := json.Unmarshal(data, &urlsTypeTwo)
 	if err != nil {
 		return nil, err
 	}
+	urls := models.URL(urlsTypeTwo)
 
-	return &urlData, nil
+	return &urls, nil
 }
 
 func (c *Consumer) Close() error {
