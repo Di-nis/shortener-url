@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -17,8 +16,9 @@ import (
 
 	"database/sql"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"context"
+	"fmt"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"time"
 )
 
@@ -40,17 +40,64 @@ func NewСontroller(urlUseCase *usecase.URLUseCase, config *config.Config) *Cont
 func (c *Controller) CreateRouter() http.Handler {
 	router := chi.NewRouter()
 
-	router.Post("/api/shorten", c.createURLShortFromJSON)
-	router.Post("/", c.createURLShortFromText)
+	router.Post("/api/shorten/batch", c.createURLShortJSONBatch)
+	router.Post("/api/shorten", c.createURLShortJSON)
+	router.Post("/", c.createURLShortText)
 	router.Get("/{short_url}", c.getlURLOriginal)
 	router.Get("/ping", c.pingDB)
 	return router
 }
 
-// createURLShortFromJSON - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
-func (c *Controller) createURLShortFromJSON(res http.ResponseWriter, req *http.Request) {
+// createURLShortJSON - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
+func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
-    defer cancel()
+	defer cancel()
+
+	if req.Method != http.MethodPost {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	bodyBytes, _ := io.ReadAll(req.Body)
+	if reflect.DeepEqual(bodyBytes, []byte{}) {
+		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
+		res.Header().Set("Content-Type", "")
+		return
+	}
+
+	defer req.Body.Close()
+
+	var urls []models.URL
+	if err := json.Unmarshal(bodyBytes, &urls); err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	urls, err := c.URLUseCase.CreateURL(ctx, urls)
+	if err != nil {
+		res.WriteHeader(http.StatusConflict)
+		return
+	}
+
+	bodyResult, err := json.Marshal(urls)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusCreated)
+
+	_, err = res.Write([]byte(bodyResult))
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// createURLShortJSON - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
+func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
+	defer cancel()
 
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
@@ -67,22 +114,24 @@ func (c *Controller) createURLShortFromJSON(res http.ResponseWriter, req *http.R
 	defer req.Body.Close()
 
 	var (
-		request  models.Request
-		response models.Response
+		url   models.URLCopyOne
+		urlsOut []models.URL
 	)
-	if err := json.Unmarshal(bodyBytes, &request); err != nil {
+
+	if err := json.Unmarshal(bodyBytes, &url); err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	urlShort, err := c.URLUseCase.CreateURL(ctx, request.URLOriginal)
+	urlsOut, err := c.URLUseCase.CreateURL(ctx, url)
 	if err != nil {
 		res.WriteHeader(http.StatusConflict)
 		return
 	}
-	response.Result = fmt.Sprintf("%s/%s", c.Config.BaseURL, urlShort)
+	url = models.URLCopyOne(urlsOut[0])
+	url.Short = fmt.Sprintf("%s/%s", c.Config.BaseURL, url.Short)
 
-	bodyResult, err := json.Marshal(response)
+	bodyResult, err := json.Marshal(url)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
@@ -97,10 +146,10 @@ func (c *Controller) createURLShortFromJSON(res http.ResponseWriter, req *http.R
 	}
 }
 
-// createURLShortFromText - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
-func (c *Controller) createURLShortFromText(res http.ResponseWriter, req *http.Request) {
+// createURLShortText - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
+func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
-    defer cancel()
+	defer cancel()
 
 	if req.Method != http.MethodPost {
 		res.WriteHeader(http.StatusMethodNotAllowed)
@@ -115,20 +164,29 @@ func (c *Controller) createURLShortFromText(res http.ResponseWriter, req *http.R
 
 	defer req.Body.Close()
 
-	urlOriginal := string(bodyBytes)
-	urlShort, err := c.URLUseCase.CreateURL(ctx, urlOriginal)
-	fmt.Println(err)
+	var (
+		url = models.URL{
+			Original: string(bodyBytes),
+		}
+		// urls = []models.URL{}
+	)
+
+	urls, err := c.URLUseCase.CreateURL(ctx, url)
+
 	if err != nil && err == constants.ErrorURLAlreadyExist {
 		res.WriteHeader(http.StatusConflict)
 		return
 	}
 
-	bodyResult := fmt.Sprintf("%s/%s", c.Config.BaseURL, urlShort)
+	url = urls[0]
+	url.Short = fmt.Sprintf("%s/%s", c.Config.BaseURL, url.Short)
+
+	// bodyResult := fmt.Sprintf("%s/%s", c.Config.BaseURL, url.Short)
 
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
 
-	_, err = res.Write([]byte(bodyResult))
+	_, err = res.Write([]byte(url.Short))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -137,7 +195,7 @@ func (c *Controller) createURLShortFromText(res http.ResponseWriter, req *http.R
 // getlURLOriginal - обрабатка HTTP-запроса: тип запроcа - GET, вовзвращает оригинальный URL.
 func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
-    defer cancel()
+	defer cancel()
 
 	if req.Method != http.MethodGet {
 		res.WriteHeader(http.StatusMethodNotAllowed)
@@ -169,10 +227,10 @@ func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
 	defer db.Close()
 
 	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
-    defer cancel()
-    if err := db.PingContext(ctx); err != nil {
-        res.WriteHeader(http.StatusInternalServerError)
-    }
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+	}
 
 	res.WriteHeader(http.StatusOK)
 }

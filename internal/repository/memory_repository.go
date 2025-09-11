@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"slices"
 
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/models"
@@ -20,27 +21,21 @@ func NewRepoMemory() *RepoMemory {
 }
 
 // Create - сохранение URL в базу данных.
-func (repo *RepoMemory) Create(ctx context.Context, urlOriginal, urlShort string) error {
-	for _, urlData := range repo.URLOriginalAndShort {
-		if urlData.URLOriginal == urlOriginal {
+func (repo *RepoMemory) Create(ctx context.Context, urls []models.URL) error {
+	for _, url := range urls {
+		if slices.Contains(repo.URLOriginalAndShort, url) {
 			return constants.ErrorURLAlreadyExist
 		}
+		repo.URLOriginalAndShort = append(repo.URLOriginalAndShort, url)
 	}
-
-	urlData := models.URL{
-		URLShort:    urlShort,
-		URLOriginal: urlOriginal,
-	}
-
-	repo.URLOriginalAndShort = append(repo.URLOriginalAndShort, urlData)
 	return nil
 }
 
 // Get - получение оригинального URL из базы данных.
 func (repo *RepoMemory) Get(ctx context.Context, urlShort string) (string, error) {
 	for _, urlData := range repo.URLOriginalAndShort {
-		if urlData.URLShort == urlShort {
-			return urlData.URLOriginal, nil
+		if urlData.Short == urlShort {
+			return urlData.Original, nil
 		}
 	}
 	return "", constants.ErrorURLNotExist

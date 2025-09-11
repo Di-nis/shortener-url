@@ -3,40 +3,74 @@ package models
 import "encoding/json"
 
 type URL struct {
-	ID          string
-	URLShort    string
-	URLOriginal string
+	ID       string
+	Short    string
+	Original string
 }
 
 func (url URL) MarshalJSON() ([]byte, error) {
-	aliasValue := struct {
-		URLShort    string `json:"url_short"`
-		URLOriginal string `json:"url_original"`
-		ID          string `json:"uuid"`
+	urlAlias := struct {
+		Short    string `json:"short_url"`
+		Original string `json:"-"`
+		ID       string `json:"correlation_id"`
 	}{
-		URLShort:    url.URLShort,
-		URLOriginal: url.URLOriginal,
-		ID:          url.ID,
+		Short:    url.Short,
+		Original: url.Original,
+		ID:       url.ID,
 	}
 
-	return json.Marshal(aliasValue)
+	return json.Marshal(urlAlias)
 }
 
-func (url *URL) UnmarshalJSON(data []byte) (err error) {
-	aliasValue := &struct {
-		URLShort    string `json:"url_short"`
-		URLOriginal string `json:"url_original"`
-		ID          string `json:"uuid"`
-	}{
-		URLShort:    url.URLShort,
-		URLOriginal: url.URLOriginal,
-		ID:          url.ID,
+func (url *URL) UnmarshalJSON(data []byte) error {
+	type URLAlias struct {
+		Short    string `json:"-"`
+		Original string `json:"original_url"`
+		ID       string `json:"correlation_id"`
 	}
 
-	if err = json.Unmarshal(data, aliasValue); err != nil {
-		return
+	var urlAlias URLAlias
+
+	if err := json.Unmarshal(data, &urlAlias); err != nil {
+		return err
 	}
-	return
+	url.Original = urlAlias.Original
+	url.ID = urlAlias.ID
+	return nil
+}
+
+type URLCopyOne struct {
+	ID       string
+	Short    string
+	Original string
+}
+
+func (url URLCopyOne) MarshalJSON() ([]byte, error) {
+	urlAlias := struct {
+		Short    string `json:"result"`
+		Original string `json:"-"`
+		ID       string `json:"-"`
+	}{
+		Short:    url.Short,
+	}
+
+	return json.Marshal(urlAlias)
+}
+
+func (url *URLCopyOne) UnmarshalJSONTypeOne(data []byte) (err error) {
+	type URLAlias struct {
+		Short    string `json:"-"`
+		Original string `json:"url"`
+		ID       string `json:"-"`
+	}
+
+	var urlAlias URLAlias
+
+	if err := json.Unmarshal(data, &urlAlias); err != nil {
+		return err
+	}
+	url.Original = urlAlias.Original
+	return nil
 }
 
 type Request struct {

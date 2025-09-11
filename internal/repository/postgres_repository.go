@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/Di-nis/shortener-url/internal/constants"
+	"github.com/Di-nis/shortener-url/internal/models"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -39,21 +40,35 @@ func (repo *RepoPostgres) Migrations() error {
 	return nil
 }
 
-func (repo *RepoPostgres) Create(ctx context.Context, urlOriginal, urlShort string) error {
+func (repo *RepoPostgres) Create(ctx context.Context, urls []models.URL) error {
+	
 	db, err := sql.Open("pgx", repo.dataSourceName)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	// тут должно быть result, err
-	_, err = db.ExecContext(ctx, "INSERT INTO urls (original, short) VALUES ($1, $2)", urlOriginal, urlShort)
-	// написать более подробно обработку ошибок
+	tx, err := db.Begin()
+
 	if err != nil {
 		return err
 	}
+
+	defer tx.Rollback()
+
+	stmt, err := db.PrepareContext(ctx, "INSERT INTO urls (original, short) VALUES ($1, $2)")
+	if err != nil {
+		return err
+	}
+
+	for _, url := range urls {
+		_, err = stmt.ExecContext(ctx, url.Original, url.Short)
+	}
+		if err != nil {
+			return err
+		}
 	// return result.LastInsertId()
-	return nil
+	return tx.Commit()
 }
 
 func (repo *RepoPostgres) Get(ctx context.Context, urlShort string) (string, error) {

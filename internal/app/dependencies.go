@@ -69,14 +69,15 @@ func initRepoMemory() (*repository.RepoMemory, error) {
 }
 
 func initStorage(cfg *config.Config) (usecase.URLRepository, error) {
-	switch {
-	case cfg.DataBaseDSN != "":
-		return initRepoPostgres(cfg)
-	case cfg.FileStoragePath != "":
-		return initRepoFile(cfg)
-	default:
-		return initRepoMemory()
-	}
+	return initRepoPostgres(cfg)
+	// switch {
+	// case cfg.DataBaseDSN != "":
+	// 	return initRepoPostgres(cfg)
+	// case cfg.FileStoragePath != "":
+	// 	return initRepoFile(cfg)
+	// default:
+	// 	return initRepoMemory()
+	// }
 }
 
 func setupRouter(cfg *config.Config, repo usecase.URLRepository, svc *service.Service) http.Handler {

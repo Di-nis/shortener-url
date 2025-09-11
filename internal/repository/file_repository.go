@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"slices"
 
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/models"
@@ -41,23 +42,17 @@ func NewRepoFile(fileStoragePath string, storage *Storage) *RepoFile {
 }
 
 // Create - сохранение URL в базу данных.
-func (repo *RepoFile) Create(ctx context.Context, urlOriginal, urlShort string) error {
-	for _, urlData := range repo.URLOriginalAndShort {
-		if urlData.URLOriginal == urlOriginal {
+func (repo *RepoFile) Create(ctx context.Context, urls []models.URL) error {
+	for _, url := range urls {
+		if slices.Contains(repo.URLOriginalAndShort, url) {
 			return constants.ErrorURLAlreadyExist
 		}
-	}
+		repo.URLOriginalAndShort = append(repo.URLOriginalAndShort, url)
 
-	urlData := models.URL{
-		URLShort:    urlShort,
-		URLOriginal: urlOriginal,
-	}
-
-	repo.URLOriginalAndShort = append(repo.URLOriginalAndShort, urlData)
-
-	err := repo.Storage.Producer.SaveToFile(urlData)
-	if err != nil {
-		return err
+		err := repo.Storage.Producer.SaveToFile(url)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -65,8 +60,8 @@ func (repo *RepoFile) Create(ctx context.Context, urlOriginal, urlShort string) 
 // Get - получение оригинального URL из базы данных.
 func (repo *RepoFile) Get(ctx context.Context, urlShort string) (string, error) {
 	for _, urlData := range repo.URLOriginalAndShort {
-		if urlData.URLShort == urlShort {
-			return urlData.URLOriginal, nil
+		if urlData.Short == urlShort {
+			return urlData.Original, nil
 		}
 	}
 	return "", constants.ErrorURLNotExist
