@@ -168,7 +168,6 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 		url = models.URL{
 			Original: string(bodyBytes),
 		}
-		// urls = []models.URL{}
 	)
 
 	urls, err := c.URLUseCase.CreateURL(ctx, url)

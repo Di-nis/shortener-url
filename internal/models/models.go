@@ -1,6 +1,8 @@
 package models
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 type URL struct {
 	ID       string
@@ -48,8 +50,6 @@ type URLCopyOne struct {
 func (url URLCopyOne) MarshalJSON() ([]byte, error) {
 	urlAlias := struct {
 		Short    string `json:"result"`
-		Original string `json:"-"`
-		ID       string `json:"-"`
 	}{
 		Short:    url.Short,
 	}
@@ -57,11 +57,9 @@ func (url URLCopyOne) MarshalJSON() ([]byte, error) {
 	return json.Marshal(urlAlias)
 }
 
-func (url *URLCopyOne) UnmarshalJSONTypeOne(data []byte) (err error) {
+func (url *URLCopyOne) UnmarshalJSON(data []byte) error {
 	type URLAlias struct {
-		Short    string `json:"-"`
 		Original string `json:"url"`
-		ID       string `json:"-"`
 	}
 
 	var urlAlias URLAlias
