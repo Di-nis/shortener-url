@@ -79,6 +79,11 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 		return
 	}
 
+	// тут добавить base_url
+	for idx, url := range urls {
+		urls[idx].Short = fmt.Sprintf("%s/%s", c.Config.BaseURL, url.Short)
+	}
+
 	bodyResult, err := json.Marshal(urls)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
