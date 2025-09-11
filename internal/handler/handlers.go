@@ -180,8 +180,6 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 	url = urls[0]
 	url.Short = fmt.Sprintf("%s/%s", c.Config.BaseURL, url.Short)
 
-	// bodyResult := fmt.Sprintf("%s/%s", c.Config.BaseURL, url.Short)
-
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
 

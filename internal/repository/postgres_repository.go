@@ -8,6 +8,7 @@ import (
 	"github.com/Di-nis/shortener-url/internal/models"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"errors"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/lib/pq"
@@ -41,7 +42,6 @@ func (repo *RepoPostgres) Migrations() error {
 }
 
 func (repo *RepoPostgres) Create(ctx context.Context, urls []models.URL) error {
-	
 	db, err := sql.Open("pgx", repo.dataSourceName)
 	if err != nil {
 		return err
@@ -77,7 +77,14 @@ func (repo *RepoPostgres) Get(ctx context.Context, urlShort string) (string, err
 		return "", err
 	}
 	defer db.Close()
-	row := db.QueryRowContext(ctx, "SELECT original FROM urls WHERE short = $1", urlShort)
+
+	stmt, err := db.PrepareContext(ctx, "SELECT original FROM urls WHERE short = $1")
+	if err != nil {
+		return "", errors.New("косяк")
+	}
+	defer stmt.Close()
+
+	row := stmt.QueryRowContext(ctx, urlShort)
 
 	var URLOriginal string
 	err = row.Scan(&URLOriginal)
