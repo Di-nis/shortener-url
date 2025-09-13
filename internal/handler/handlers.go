@@ -17,7 +17,6 @@ import (
 	"database/sql"
 
 	"context"
-	"fmt"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"time"
 )
@@ -180,8 +179,8 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	addBaseURLToShort(c.Config.BaseURL, urls)
 	url = urls[0]
-	url.Short = fmt.Sprintf("%s/%s", c.Config.BaseURL, url.Short)
 
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusCreated)

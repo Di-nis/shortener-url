@@ -3,8 +3,10 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"errors"
+
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/models"
 	"github.com/golang-migrate/migrate/v4"
@@ -62,6 +64,7 @@ func (repo *RepoPostgres) Create(ctx context.Context, urls []models.URL) error {
 
 	defer tx.Rollback()
 
+	// stmt, err := db.PrepareContext(ctx, "INSERT INTO urls (original, short) VALUES ($1, $2) ON CONFLICT (original) DO NOTHING")
 	stmt, err := db.PrepareContext(ctx, "INSERT INTO urls (original, short) VALUES ($1, $2)")
 	if err != nil {
 		return err
@@ -70,6 +73,8 @@ func (repo *RepoPostgres) Create(ctx context.Context, urls []models.URL) error {
 	for _, url := range urls {
 		_, err = stmt.ExecContext(ctx, url.Original, url.Short)
 	}
+	fmt.Println("Всем привет")
+	fmt.Printf("%+v\n", err)
 	if err != nil {
 		return err
 	}
