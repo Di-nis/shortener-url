@@ -4,6 +4,10 @@ import (
 	"errors"
 )
 
+const (
+	HashLength = 8
+)
+
 var (
 	// Ошибки:
 	// URL уже существует

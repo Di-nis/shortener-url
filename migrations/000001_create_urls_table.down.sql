@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS idx_short;
+DROP TABLE IF EXISTS urls; 
