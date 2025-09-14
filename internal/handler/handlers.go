@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"errors"
 
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/constants"
@@ -17,8 +18,9 @@ import (
 	"database/sql"
 
 	"context"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"time"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 // Controller - структура HTTP-хендлера.
@@ -72,13 +74,15 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 		return
 	}
 
-	urls, err := c.URLUseCase.CreateURL(ctx, urls)
+	urls, err := c.URLUseCase.CreateURLBatch(ctx, urls)
 	if err != nil {
 		res.WriteHeader(http.StatusConflict)
 		return
 	}
 
-	addBaseURLToShort(c.Config.BaseURL, urls)
+	for idx := range urls {
+		urls[idx].Short = addBaseURLToShort(c.Config.BaseURL, urls[idx].Short)
+	}
 
 	bodyResult, err := json.Marshal(urls)
 	if err != nil {
@@ -115,32 +119,40 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 	defer req.Body.Close()
 
 	var (
-		url     models.URLCopyOne
-		urlsOut []models.URL
+		urlInOut models.URLCopyOne
+		url      models.URL
 	)
 
-	if err := json.Unmarshal(bodyBytes, &url); err != nil {
+	if err := json.Unmarshal(bodyBytes, &urlInOut); err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	urlsOut, err := c.URLUseCase.CreateURL(ctx, url)
-	if err != nil {
-		res.WriteHeader(http.StatusConflict)
-		return
-	}
+	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut)
 
-	addBaseURLToShort(c.Config.BaseURL, urlsOut)
-	url = models.URLCopyOne(urlsOut[0])
+	url.Short = addBaseURLToShort(c.Config.BaseURL, url.Short)
+	urlInOut = models.URLCopyOne(url)
 
-	bodyResult, err := json.Marshal(url)
-	if err != nil {
+	bodyResult, err2 := json.Marshal(urlInOut)
+	if err2 != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusCreated)
+
+	// вынести в отдельную функцию
+	if err != nil && errors.As(err, &constants.PgErr) {
+		switch constants.PgErr.Code {
+		case "23505":
+			res.WriteHeader(http.StatusConflict)
+		}
+	} else if err != nil && errors.Is(err, constants.ErrorURLAlreadyExist) {
+		res.WriteHeader(http.StatusConflict)
+	} else {
+		res.WriteHeader(http.StatusCreated)
+	}
+	// вынести в отдельную функцию
 
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
@@ -166,26 +178,29 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 
 	defer req.Body.Close()
 
-	var (
-		url = models.URL{
-			Original: string(bodyBytes),
-		}
-	)
-
-	urls, err := c.URLUseCase.CreateURL(ctx, url)
-
-	if err != nil && err == constants.ErrorURLAlreadyExist {
-		res.WriteHeader(http.StatusConflict)
-		return
+	urlIn := models.URL{
+		Original: string(bodyBytes),
 	}
 
-	addBaseURLToShort(c.Config.BaseURL, urls)
-	url = urls[0]
+	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn)
+	urlOut.Short = addBaseURLToShort(c.Config.BaseURL, urlOut.Short)
 
 	res.Header().Set("Content-Type", "text/plain")
-	res.WriteHeader(http.StatusCreated)
 
-	_, err = res.Write([]byte(url.Short))
+	// вынести в отдельную функцию
+	if err != nil && errors.As(err, &constants.PgErr) {
+		switch constants.PgErr.Code {
+		case "23505":
+			res.WriteHeader(http.StatusConflict)
+		}
+	} else if err != nil && errors.Is(err, constants.ErrorURLAlreadyExist) {
+		res.WriteHeader(http.StatusConflict)
+	} else {
+		res.WriteHeader(http.StatusCreated)
+	}
+	// вынести в отдельную функцию
+
+	_, err = res.Write([]byte(urlOut.Short))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -204,7 +219,7 @@ func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request)
 	URLShort := chi.URLParam(req, "short_url")
 	defer req.Body.Close()
 
-	urlOriginal, err := c.URLUseCase.GetURL(ctx, URLShort)
+	urlOriginal, err := c.URLUseCase.GetOriginalURL(ctx, URLShort)
 	if err != nil && err == constants.ErrorURLNotExist {
 		res.WriteHeader(http.StatusNotFound)
 		return

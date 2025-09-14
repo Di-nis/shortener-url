@@ -55,7 +55,7 @@ func initRepoFile(cfg *config.Config) (*repository.RepoFile, error) {
 	}
 
 	repo := repository.NewRepoFile(cfg.FileStoragePath, storage)
-	repo.URLOriginalAndShort, err = storage.Consumer.LoadFromFile()
+	repo.OriginalAndShortUrl, err = storage.Consumer.LoadFromFile()
 	if err != nil {
 		return nil, fmt.Errorf("ошибка загрузки данных из файла-хранилища: %w", err)
 	}

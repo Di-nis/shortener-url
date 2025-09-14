@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	// "fmt"
 
 	"errors"
 
@@ -49,7 +49,28 @@ func (repo *RepoPostgres) Migrations() error {
 	return nil
 }
 
-func (repo *RepoPostgres) Create(ctx context.Context, urls []models.URL) error {
+func (repo *RepoPostgres) CreateOrdinaty(ctx context.Context, url models.URL) error {
+	db, err := sql.Open("pgx", repo.dataSourceName)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	stmt, err := db.PrepareContext(ctx, "INSERT INTO urls (original, short) VALUES ($1, $2)")
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.ExecContext(ctx, url.Original, url.Short)
+	if err != nil {
+		return err
+	}
+	// return result.LastInsertId()
+	return nil
+}
+
+
+func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL) error {
 	db, err := sql.Open("pgx", repo.dataSourceName)
 	if err != nil {
 		return err
@@ -64,7 +85,6 @@ func (repo *RepoPostgres) Create(ctx context.Context, urls []models.URL) error {
 
 	defer tx.Rollback()
 
-	// stmt, err := db.PrepareContext(ctx, "INSERT INTO urls (original, short) VALUES ($1, $2) ON CONFLICT (original) DO NOTHING")
 	stmt, err := db.PrepareContext(ctx, "INSERT INTO urls (original, short) VALUES ($1, $2)")
 	if err != nil {
 		return err
@@ -73,8 +93,6 @@ func (repo *RepoPostgres) Create(ctx context.Context, urls []models.URL) error {
 	for _, url := range urls {
 		_, err = stmt.ExecContext(ctx, url.Original, url.Short)
 	}
-	fmt.Println("Всем привет")
-	fmt.Printf("%+v\n", err)
 	if err != nil {
 		return err
 	}
@@ -82,7 +100,31 @@ func (repo *RepoPostgres) Create(ctx context.Context, urls []models.URL) error {
 	return tx.Commit()
 }
 
-func (repo *RepoPostgres) Get(ctx context.Context, urlShort string) (string, error) {
+func (repo *RepoPostgres) GetShortURL(ctx context.Context, urlOriginal string) (string, error) {
+	db, err := sql.Open("pgx", repo.dataSourceName)
+	if err != nil {
+		return "", err
+	}
+	defer db.Close()
+
+	stmt, err := db.PrepareContext(ctx, "SELECT short FROM urls WHERE original = $1")
+	if err != nil {
+		// тут надо разобраться, какая ошибка может прийти
+		return "", errors.New("косяк")
+	}
+	defer stmt.Close()
+
+	row := stmt.QueryRowContext(ctx, urlOriginal)
+
+	var urlShort string
+	err = row.Scan(&urlShort)
+	if err != nil {
+		return "", constants.ErrorURLNotExist
+	}
+	return urlShort, nil
+}
+
+func (repo *RepoPostgres) GetOriginalURL(ctx context.Context, urlShort string) (string, error) {
 	db, err := sql.Open("pgx", repo.dataSourceName)
 	if err != nil {
 		return "", err
@@ -97,10 +139,10 @@ func (repo *RepoPostgres) Get(ctx context.Context, urlShort string) (string, err
 
 	row := stmt.QueryRowContext(ctx, urlShort)
 
-	var URLOriginal string
-	err = row.Scan(&URLOriginal)
+	var urlOriginal string
+	err = row.Scan(&urlOriginal)
 	if err != nil {
 		return "", constants.ErrorURLNotExist
 	}
-	return URLOriginal, nil
+	return urlOriginal, nil
 }
