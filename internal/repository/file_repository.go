@@ -26,7 +26,7 @@ type Storage struct {
 
 // RepoFile - структура базы данных.
 type RepoFile struct {
-	OriginalAndShortUrl []models.URL
+	OriginalAndShortURL []models.URL
 	FileStoragePath     string
 	Storage             *Storage
 }
@@ -34,7 +34,7 @@ type RepoFile struct {
 // NewRepoFile - создание структуры Repo.
 func NewRepoFile(fileStoragePath string, storage *Storage) *RepoFile {
 	return &RepoFile{
-		OriginalAndShortUrl: make([]models.URL, 0),
+		OriginalAndShortURL: make([]models.URL, 0),
 		FileStoragePath:     fileStoragePath,
 		Storage:             storage,
 	}
@@ -43,13 +43,13 @@ func NewRepoFile(fileStoragePath string, storage *Storage) *RepoFile {
 // CreateBatch - сохранение URL в базу данных.
 func (repo *RepoFile) CreateBatch(ctx context.Context, urls []models.URL) error {
 	for _, url := range urls {
-		for _, urlDB := range repo.OriginalAndShortUrl {
+		for _, urlDB := range repo.OriginalAndShortURL {
 			if urlDB.Original == url.Original {
 				return constants.ErrorURLAlreadyExist
 			}
 		}
 
-		repo.OriginalAndShortUrl = append(repo.OriginalAndShortUrl, url)
+		repo.OriginalAndShortURL = append(repo.OriginalAndShortURL, url)
 
 		err := repo.Storage.Producer.SaveToFile(url)
 		if err != nil {
@@ -61,21 +61,26 @@ func (repo *RepoFile) CreateBatch(ctx context.Context, urls []models.URL) error 
 
 // CreateOrdinaty - сохранение URL в базу данных.
 func (repo *RepoFile) CreateOrdinaty(ctx context.Context, url models.URL) error {
-	for _, urlDB := range repo.OriginalAndShortUrl {
+	for _, urlDB := range repo.OriginalAndShortURL {
 		if urlDB.Original == url.Original {
 			return constants.ErrorURLAlreadyExist
 		}
 	}
 
-	repo.OriginalAndShortUrl = append(repo.OriginalAndShortUrl, url)
+	repo.OriginalAndShortURL = append(repo.OriginalAndShortURL, url)
+
+	err := repo.Storage.Producer.SaveToFile(url)
+		if err != nil {
+			return err
+		}
 	return nil
 
 }
 
 // GetOriginalURL - получение оригинального URL из базы данных.
-func (repo *RepoFile) GetOriginalURL(ctx context.Context, shortUrl string) (string, error) {
-	for _, urlData := range repo.OriginalAndShortUrl {
-		if urlData.Short == shortUrl {
+func (repo *RepoFile) GetOriginalURL(ctx context.Context, shortURL string) (string, error) {
+	for _, urlData := range repo.OriginalAndShortURL {
+		if urlData.Short == shortURL {
 			return urlData.Original, nil
 		}
 	}
@@ -83,9 +88,9 @@ func (repo *RepoFile) GetOriginalURL(ctx context.Context, shortUrl string) (stri
 }
 
 // GetShortURL - получение оригинального URL из базы данных.
-func (repo *RepoFile) GetShortURL(ctx context.Context, originalUrl string) (string, error) {
-	for _, urlData := range repo.OriginalAndShortUrl {
-		if urlData.Original == originalUrl {
+func (repo *RepoFile) GetShortURL(ctx context.Context, originalURL string) (string, error) {
+	for _, urlData := range repo.OriginalAndShortURL {
+		if urlData.Original == originalURL {
 			return urlData.Short, nil
 		}
 	}

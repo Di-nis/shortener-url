@@ -9,47 +9,47 @@ import (
 
 // RepoMemory - структура базы данных.
 type RepoMemory struct {
-	OriginalAndShortUrl []models.URL
+	OriginalAndShortURL []models.URL
 }
 
 // NewRepoMemory - создание структуры Repo.
 func NewRepoMemory() *RepoMemory {
 	return &RepoMemory{
-		OriginalAndShortUrl: make([]models.URL, 0),
+		OriginalAndShortURL: make([]models.URL, 0),
 	}
 }
 
 // CreateBatch - сохранение URL в базу данных.
 func (repo *RepoMemory) CreateBatch(ctx context.Context, urls []models.URL) error {
 	for _, url := range urls {
-		for _, urlDB := range repo.OriginalAndShortUrl {
+		for _, urlDB := range repo.OriginalAndShortURL {
 			if urlDB.Original == url.Original {
 				return constants.ErrorURLAlreadyExist
 			}
 		}
 
-		repo.OriginalAndShortUrl = append(repo.OriginalAndShortUrl, url)
+		repo.OriginalAndShortURL = append(repo.OriginalAndShortURL, url)
 	}
 	return nil
 }
 
 // CreateOrdinaty - сохранение URL в базу данных.
 func (repo *RepoMemory) CreateOrdinaty(ctx context.Context, urlIn models.URL) error {
-	for _, urlDB := range repo.OriginalAndShortUrl {
+	for _, urlDB := range repo.OriginalAndShortURL {
 		if urlDB.Original == urlIn.Original {
 			return constants.ErrorURLAlreadyExist
 		}
 	}
 
-	repo.OriginalAndShortUrl = append(repo.OriginalAndShortUrl, urlIn)
+	repo.OriginalAndShortURL = append(repo.OriginalAndShortURL, urlIn)
 	return nil
 
 }
 
 // GetOriginalURL - получение оригинального URL из базы данных.
-func (repo *RepoMemory) GetOriginalURL(ctx context.Context, shortUrl string) (string, error) {
-	for _, urlData := range repo.OriginalAndShortUrl {
-		if urlData.Short == shortUrl {
+func (repo *RepoMemory) GetOriginalURL(ctx context.Context, shortURL string) (string, error) {
+	for _, urlData := range repo.OriginalAndShortURL {
+		if urlData.Short == shortURL {
 			return urlData.Original, nil
 		}
 	}
@@ -57,9 +57,9 @@ func (repo *RepoMemory) GetOriginalURL(ctx context.Context, shortUrl string) (st
 }
 
 // GetShortURL - получение оригинального URL из базы данных.
-func (repo *RepoMemory) GetShortURL(ctx context.Context, originalUrl string) (string, error) {
-	for _, urlData := range repo.OriginalAndShortUrl {
-		if urlData.Original == originalUrl {
+func (repo *RepoMemory) GetShortURL(ctx context.Context, originalURL string) (string, error) {
+	for _, urlData := range repo.OriginalAndShortURL {
+		if urlData.Original == originalURL {
 			return urlData.Short, nil
 		}
 	}

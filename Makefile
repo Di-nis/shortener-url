@@ -1,7 +1,20 @@
-.PHONY: autotests
+statictests:
+	go vet -vettool=statictest ./...
 
-# test: run all autotests
-autotests:
+autotests1:
+	shortenertest -test.v -test.run=^TestIteration1$ \
+      -binary-path=cmd/shortener/shortener
+
+autotests9:
+	shortenertest -test.v -test.run=^TestIteration9$ \
+      -binary-path=cmd/shortener/shortener \
+      -source-path=. \
+      -file-storage-path=database.log
+
+autotests13:
 	shortenertest -test.v -test.run=^TestIteration13$ \
 		-binary-path=cmd/shortener/shortener \
 		-database-dsn=postgresql://postgres:postgres@localhost:5432/urls_db?sslmode=disable
+
+
+all: statictests autotests13
