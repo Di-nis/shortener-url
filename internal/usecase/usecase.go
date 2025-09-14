@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	// "fmt"
 	"errors"
 
 	"github.com/Di-nis/shortener-url/internal/constants"
@@ -32,6 +31,7 @@ func NewURLUseCase(repo URLRepository, service *service.Service) *URLUseCase {
 	}
 }
 
+// convertToSingleType - приведение к единому типу данных.
 func convertToSingleType(urlIn any) models.URL {
 	url1, ok1 := urlIn.(models.URL)
 	if ok1 {

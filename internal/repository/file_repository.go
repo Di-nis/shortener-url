@@ -70,9 +70,9 @@ func (repo *RepoFile) CreateOrdinaty(ctx context.Context, url models.URL) error 
 	repo.OriginalAndShortURL = append(repo.OriginalAndShortURL, url)
 
 	err := repo.Storage.Producer.SaveToFile(url)
-		if err != nil {
-			return err
-		}
+	if err != nil {
+		return err
+	}
 	return nil
 
 }

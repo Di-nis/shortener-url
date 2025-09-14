@@ -3,8 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	// "fmt"
-
 	"errors"
 
 	"github.com/Di-nis/shortener-url/internal/constants"
@@ -69,7 +67,6 @@ func (repo *RepoPostgres) CreateOrdinaty(ctx context.Context, url models.URL) er
 	return nil
 }
 
-
 func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL) error {
 	db, err := sql.Open("pgx", repo.dataSourceName)
 	if err != nil {
@@ -109,8 +106,7 @@ func (repo *RepoPostgres) GetShortURL(ctx context.Context, urlOriginal string) (
 
 	stmt, err := db.PrepareContext(ctx, "SELECT short FROM urls WHERE original = $1")
 	if err != nil {
-		// тут надо разобраться, какая ошибка может прийти
-		return "", errors.New("косяк")
+		return "", err
 	}
 	defer stmt.Close()
 
@@ -118,7 +114,7 @@ func (repo *RepoPostgres) GetShortURL(ctx context.Context, urlOriginal string) (
 
 	var urlShort string
 	err = row.Scan(&urlShort)
-	if err != nil {
+	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		return "", constants.ErrorURLNotExist
 	}
 	return urlShort, nil
@@ -133,7 +129,7 @@ func (repo *RepoPostgres) GetOriginalURL(ctx context.Context, urlShort string) (
 
 	stmt, err := db.PrepareContext(ctx, "SELECT original FROM urls WHERE short = $1")
 	if err != nil {
-		return "", errors.New("косяк")
+		return "", err
 	}
 	defer stmt.Close()
 
@@ -141,7 +137,7 @@ func (repo *RepoPostgres) GetOriginalURL(ctx context.Context, urlShort string) (
 
 	var urlOriginal string
 	err = row.Scan(&urlOriginal)
-	if err != nil {
+	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		return "", constants.ErrorURLNotExist
 	}
 	return urlOriginal, nil

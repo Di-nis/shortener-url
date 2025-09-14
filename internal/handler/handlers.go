@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"reflect"
-	"errors"
 
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/constants"
@@ -81,7 +80,7 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 	}
 
 	for idx := range urls {
-		urls[idx].Short = addBaseURLToShort(c.Config.BaseURL, urls[idx].Short)
+		urls[idx].Short = addBaseURLToResponse(c.Config.BaseURL, urls[idx].Short)
 	}
 
 	bodyResult, err := json.Marshal(urls)
@@ -130,7 +129,7 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 
 	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut)
 
-	url.Short = addBaseURLToShort(c.Config.BaseURL, url.Short)
+	url.Short = addBaseURLToResponse(c.Config.BaseURL, url.Short)
 	urlInOut = models.URLCopyOne(url)
 
 	bodyResult, err2 := json.Marshal(urlInOut)
@@ -141,18 +140,7 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 
 	res.Header().Set("Content-Type", "application/json")
 
-	// вынести в отдельную функцию
-	if err != nil && errors.As(err, &constants.PgErr) {
-		switch constants.PgErr.Code {
-		case "23505":
-			res.WriteHeader(http.StatusConflict)
-		}
-	} else if err != nil && errors.Is(err, constants.ErrorURLAlreadyExist) {
-		res.WriteHeader(http.StatusConflict)
-	} else {
-		res.WriteHeader(http.StatusCreated)
-	}
-	// вынести в отдельную функцию
+	getStatusCode(res, err)
 
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
@@ -183,22 +171,11 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 	}
 
 	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn)
-	urlOut.Short = addBaseURLToShort(c.Config.BaseURL, urlOut.Short)
+	urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 
 	res.Header().Set("Content-Type", "text/plain")
 
-	// вынести в отдельную функцию
-	if err != nil && errors.As(err, &constants.PgErr) {
-		switch constants.PgErr.Code {
-		case "23505":
-			res.WriteHeader(http.StatusConflict)
-		}
-	} else if err != nil && errors.Is(err, constants.ErrorURLAlreadyExist) {
-		res.WriteHeader(http.StatusConflict)
-	} else {
-		res.WriteHeader(http.StatusCreated)
-	}
-	// вынести в отдельную функцию
+	getStatusCode(res, err)
 
 	_, err = res.Write([]byte(urlOut.Short))
 	if err != nil {
