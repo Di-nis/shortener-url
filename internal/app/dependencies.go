@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/Di-nis/shortener-url/internal/config"
@@ -27,12 +28,16 @@ func initConfigAndLogger() (*config.Config, error) {
 }
 
 func initRepoPostgres(cfg *config.Config) (*repository.RepoPostgres, error) {
-	repo := repository.NewRepoPostgres(cfg.DataBaseDSN)
+	repo, err := repository.NewRepoPostgres(cfg.DataBaseDSN)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer repo.Close()
 
 	// выполнение миграций
-	err := repo.Migrations()
+	err = repo.Migrations()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	return repo, nil

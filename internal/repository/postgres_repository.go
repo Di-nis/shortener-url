@@ -15,51 +15,47 @@ import (
 )
 
 type RepoPostgres struct {
-	dataSourceName string
+	db *sql.DB
 }
 
-func NewRepoPostgres(dataSourceName string) *RepoPostgres {
-	return &RepoPostgres{
-		dataSourceName: dataSourceName,
+func NewRepoPostgres(dataSourceName string) (*RepoPostgres, error) {
+	db, err := sql.Open("pgx", dataSourceName)
+	if err != nil {
+		return nil, err
 	}
+	return &RepoPostgres{
+		db: db,
+	}, nil
+}
+
+func (repo *RepoPostgres) Close() error {
+	return repo.db.Close()
 }
 
 func (repo *RepoPostgres) Migrations() error {
-	db, err := sql.Open("postgres", repo.dataSourceName)
-	if err != nil {
-		return err
+	driver, err1 := postgres.WithInstance(repo.db, &postgres.Config{})
+	if err1 != nil {
+		return err1
 	}
 
-	driver, err := postgres.WithInstance(db, &postgres.Config{})
-	if err != nil {
-		return err
-	}
-
-	m, err := migrate.NewWithDatabaseInstance(
+	m, err2 := migrate.NewWithDatabaseInstance(
 		"file:migrations",
 		"postgres",
 		driver)
-
-	if err != nil {
-		return err
+	if err2 != nil {
+		return err2
 	}
 
-	err = m.Up()
-	if err != nil {
-		return err
+	err3 := m.Up()
+	if errors.Is(err3, migrate.ErrNoChange) {
+		return nil
 	}
 
 	return nil
 }
 
 func (repo *RepoPostgres) CreateOrdinary(ctx context.Context, url models.URL) error {
-	db, err := sql.Open("pgx", repo.dataSourceName)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	stmt, err := db.PrepareContext(ctx, "INSERT INTO urls (original, short) VALUES ($1, $2)")
+	stmt, err := repo.db.PrepareContext(ctx, "INSERT INTO urls (original, short) VALUES ($1, $2)")
 	if err != nil {
 		return err
 	}
@@ -68,18 +64,11 @@ func (repo *RepoPostgres) CreateOrdinary(ctx context.Context, url models.URL) er
 	if err != nil {
 		return err
 	}
-	// return result.LastInsertId()
 	return nil
 }
 
 func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL) error {
-	db, err := sql.Open("pgx", repo.dataSourceName)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	tx, err := db.Begin()
+	tx, err := repo.db.Begin()
 
 	if err != nil {
 		return err
@@ -87,7 +76,7 @@ func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL) er
 
 	defer tx.Rollback()
 
-	stmt, err := db.PrepareContext(ctx, "INSERT INTO urls (original, short) VALUES ($1, $2)")
+	stmt, err := repo.db.PrepareContext(ctx, "INSERT INTO urls (original, short) VALUES ($1, $2)")
 	if err != nil {
 		return err
 	}
@@ -98,18 +87,11 @@ func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL) er
 	if err != nil {
 		return err
 	}
-	// return result.LastInsertId()
 	return tx.Commit()
 }
 
 func (repo *RepoPostgres) GetShortURL(ctx context.Context, urlOriginal string) (string, error) {
-	db, err := sql.Open("pgx", repo.dataSourceName)
-	if err != nil {
-		return "", err
-	}
-	defer db.Close()
-
-	stmt, err := db.PrepareContext(ctx, "SELECT short FROM urls WHERE original = $1")
+	stmt, err := repo.db.PrepareContext(ctx, "SELECT short FROM urls WHERE original = $1")
 	if err != nil {
 		return "", err
 	}
@@ -126,13 +108,7 @@ func (repo *RepoPostgres) GetShortURL(ctx context.Context, urlOriginal string) (
 }
 
 func (repo *RepoPostgres) GetOriginalURL(ctx context.Context, urlShort string) (string, error) {
-	db, err := sql.Open("pgx", repo.dataSourceName)
-	if err != nil {
-		return "", err
-	}
-	defer db.Close()
-
-	stmt, err := db.PrepareContext(ctx, "SELECT original FROM urls WHERE short = $1")
+	stmt, err := repo.db.PrepareContext(ctx, "SELECT original FROM urls WHERE short = $1")
 	if err != nil {
 		return "", err
 	}

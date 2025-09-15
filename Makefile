@@ -5,6 +5,11 @@ autotests1:
 	shortenertest -test.v -test.run=^TestIteration1$ \
       -binary-path=cmd/shortener/shortener
 
+autotests11:
+	shortenertest -test.v -test.run=^TestIteration11$ \
+      -binary-path=cmd/shortener/shortener \
+      -database-dsn=postgresql://postgres:postgres@localhost:5432/urls_db?sslmode=disable
+
 autotests9:
 	shortenertest -test.v -test.run=^TestIteration9$ \
       -binary-path=cmd/shortener/shortener \
