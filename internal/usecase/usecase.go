@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/models"
@@ -46,13 +47,15 @@ func convertToSingleType(urlIn any) models.URL {
 
 // CreateURLOrdinary - создание короткого URL и его запись в базу данных.
 func (urlUserCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any) (models.URL, error) {
+	var PgErr *pgconn.PgError
+
 	urlOrdinary := convertToSingleType(urlIn)
 	urlOrdinary.Short = urlUserCase.Service.ShortHash(urlOrdinary.Original, constants.HashLength)
 
 	err := urlUserCase.Repo.CreateOrdinary(ctx, urlOrdinary)
 
-	if err != nil && errors.As(err, &constants.PgErr) {
-		switch constants.PgErr.Code {
+	if err != nil && errors.As(err, &PgErr) {
+		switch PgErr.Code {
 		case "23505":
 			urlOrdinary.Short, _ = urlUserCase.Repo.GetShortURL(ctx, urlOrdinary.Original)
 		}

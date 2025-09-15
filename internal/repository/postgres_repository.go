@@ -43,7 +43,12 @@ func (repo *RepoPostgres) Migrations() error {
 	if err != nil {
 		return err
 	}
-	m.Up()
+
+	err = m.Up()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
