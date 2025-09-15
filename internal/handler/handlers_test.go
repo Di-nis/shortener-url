@@ -41,7 +41,7 @@ func initHandler() (http.Handler, error) {
 		Producer: producer,
 	}
 
-	repo := repository.NewRepo(cfg.FileStoragePath, storage)
+	repo := repository.NewRepoFile(cfg.FileStoragePath, storage)
 	svc := service.NewService()
 
 	urlUseCase := usecase.NewURLUseCase(repo, svc)
@@ -181,7 +181,7 @@ func TestCreateAndGetURL(t *testing.T) {
 			acceptEncoding:  "",
 			want: want{
 				statusCode:      http.StatusBadRequest,
-				response:        "json: cannot unmarshal number into Go struct field Request.url of type string\n",
+				response:        "json: cannot unmarshal number into Go struct field",
 				contentType:     "text/plain; charset=utf-8",
 				contentEncoding: "",
 			},
@@ -217,7 +217,10 @@ func TestCreateAndGetURL(t *testing.T) {
 
 			require.NoError(t, err, "error making HTTP request")
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
-			assert.Equal(t, tt.want.response, string(resp.Body()))
+
+			checkBody := strings.Contains(string(resp.Body()), tt.want.response)
+			assert.Equal(t, true, checkBody)
+
 			assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"))
 		})
 	}

@@ -5,6 +5,7 @@ import (
 
 	"github.com/Di-nis/shortener-url/internal/compress"
 	"github.com/Di-nis/shortener-url/internal/logger"
+	"github.com/Di-nis/shortener-url/internal/service"
 )
 
 func Run() error {
@@ -12,10 +13,11 @@ func Run() error {
 	if err != nil {
 		return err
 	}
-	repo, svc, err := initStorageAndServices(cfg)
+	repo, err := initStorage(cfg)
 	if err != nil {
 		return err
 	}
+	svc := service.NewService()
 	router := setupRouter(cfg, repo, svc)
 	return http.ListenAndServe(cfg.ServerAddress, logger.WithLogging(compress.GzipMiddleware(router)))
 }
