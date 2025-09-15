@@ -47,7 +47,7 @@ func (repo *RepoPostgres) Migrations() error {
 	return nil
 }
 
-func (repo *RepoPostgres) CreateOrdinaty(ctx context.Context, url models.URL) error {
+func (repo *RepoPostgres) CreateOrdinary(ctx context.Context, url models.URL) error {
 	db, err := sql.Open("pgx", repo.dataSourceName)
 	if err != nil {
 		return err

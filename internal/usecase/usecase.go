@@ -12,7 +12,7 @@ import (
 // URLRepository - интерфейс для базы данных.
 type URLRepository interface {
 	CreateBatch(context.Context, []models.URL) error
-	CreateOrdinaty(context.Context, models.URL) error
+	CreateOrdinary(context.Context, models.URL) error
 	GetOriginalURL(context.Context, string) (string, error)
 	GetShortURL(context.Context, string) (string, error)
 }
@@ -49,15 +49,15 @@ func (urlUserCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any)
 	urlOrdinary := convertToSingleType(urlIn)
 	urlOrdinary.Short = urlUserCase.Service.ShortHash(urlOrdinary.Original, constants.HashLength)
 
-	err := urlUserCase.Repo.CreateOrdinaty(ctx, urlOrdinary)
+	err := urlUserCase.Repo.CreateOrdinary(ctx, urlOrdinary)
 
 	if err != nil && errors.As(err, &constants.PgErr) {
 		switch constants.PgErr.Code {
-        case "23505":
-            urlOrdinary.Short, _ = urlUserCase.Repo.GetShortURL(ctx, urlOrdinary.Original)
-        }
+		case "23505":
+			urlOrdinary.Short, _ = urlUserCase.Repo.GetShortURL(ctx, urlOrdinary.Original)
+		}
 		return urlOrdinary, err
-    } else if err != nil && errors.Is(err, constants.ErrorURLAlreadyExist) {
+	} else if err != nil && errors.Is(err, constants.ErrorURLAlreadyExist) {
 		urlOrdinary.Short, _ = urlUserCase.Repo.GetShortURL(ctx, urlOrdinary.Original)
 		return urlOrdinary, err
 	}

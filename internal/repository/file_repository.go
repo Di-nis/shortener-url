@@ -51,16 +51,18 @@ func (repo *RepoFile) CreateBatch(ctx context.Context, urls []models.URL) error 
 
 		repo.OriginalAndShortURL = append(repo.OriginalAndShortURL, url)
 
-		err := repo.Storage.Producer.SaveToFile(url)
-		if err != nil {
-			return err
+		if repo.FileStoragePath != "" {
+			err := repo.Storage.Producer.SaveToFile(url)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-// CreateOrdinaty - сохранение URL в базу данных.
-func (repo *RepoFile) CreateOrdinaty(ctx context.Context, url models.URL) error {
+// CreateOrdinary - сохранение URL в базу данных.
+func (repo *RepoFile) CreateOrdinary(ctx context.Context, url models.URL) error {
 	for _, urlDB := range repo.OriginalAndShortURL {
 		if urlDB.Original == url.Original {
 			return constants.ErrorURLAlreadyExist
@@ -69,9 +71,11 @@ func (repo *RepoFile) CreateOrdinaty(ctx context.Context, url models.URL) error 
 
 	repo.OriginalAndShortURL = append(repo.OriginalAndShortURL, url)
 
-	err := repo.Storage.Producer.SaveToFile(url)
-	if err != nil {
-		return err
+	if repo.FileStoragePath != "" {
+		err := repo.Storage.Producer.SaveToFile(url)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 
