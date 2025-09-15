@@ -25,6 +25,8 @@ func getStatusCode(res http.ResponseWriter, err error) {
 		}
 	} else if err != nil && errors.Is(err, constants.ErrorURLAlreadyExist) {
 		res.WriteHeader(http.StatusConflict)
+	} else if err != nil {
+		res.WriteHeader(http.StatusServiceUnavailable)
 	} else {
 		res.WriteHeader(http.StatusCreated)
 	}

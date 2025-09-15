@@ -17,6 +17,9 @@ func Run() error {
 	if err != nil {
 		return err
 	}
+
+	// defer repo.Close()
+
 	svc := service.NewService()
 	router := setupRouter(cfg, repo, svc)
 	return http.ListenAndServe(cfg.ServerAddress, logger.WithLogging(compress.GzipMiddleware(router)))

@@ -16,6 +16,7 @@ type URLRepository interface {
 	CreateOrdinary(context.Context, models.URL) error
 	GetOriginalURL(context.Context, string) (string, error)
 	GetShortURL(context.Context, string) (string, error)
+	// Close() error
 }
 
 // URLUseCase - структура создания короткого и получение оригинального url.
@@ -54,17 +55,22 @@ func (urlUserCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any)
 
 	err := urlUserCase.Repo.CreateOrdinary(ctx, urlOrdinary)
 
-	if err != nil && errors.As(err, &PgErr) {
+	if err == nil {
+		return urlOrdinary, nil
+	}
+
+	if errors.As(err, &PgErr) {
 		switch PgErr.Code {
 		case "23505":
 			urlOrdinary.Short, _ = urlUserCase.Repo.GetShortURL(ctx, urlOrdinary.Original)
 		}
 		return urlOrdinary, err
-	} else if err != nil && errors.Is(err, constants.ErrorURLAlreadyExist) {
+	} else if errors.Is(err, constants.ErrorURLAlreadyExist) {
 		urlOrdinary.Short, _ = urlUserCase.Repo.GetShortURL(ctx, urlOrdinary.Original)
 		return urlOrdinary, err
+	} else {
+		return urlOrdinary, err
 	}
-	return urlOrdinary, nil
 }
 
 // CreateURLBatch - создание короткого URL и его запись в базу данных.
