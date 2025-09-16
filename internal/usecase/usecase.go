@@ -12,11 +12,24 @@ import (
 
 // URLRepository - интерфейс для базы данных.
 type URLRepository interface {
+	Ping(context.Context) error
 	CreateBatch(context.Context, []models.URL) error
 	CreateOrdinary(context.Context, models.URL) error
 	GetOriginalURL(context.Context, string) (string, error)
 	GetShortURL(context.Context, string) (string, error)
-	// Close() error
+}
+
+// convertToSingleType - приведение к единому типу данных.
+func convertToSingleType(urlIn any) models.URL {
+	url1, ok1 := urlIn.(models.URL)
+	if ok1 {
+		return url1
+	}
+	url2, ok2 := urlIn.(models.URLCopyOne)
+	if ok2 {
+		return models.URL(url2)
+	}
+	return models.URL{}
 }
 
 // URLUseCase - структура создания короткого и получение оригинального url.
@@ -33,17 +46,9 @@ func NewURLUseCase(repo URLRepository, service *service.Service) *URLUseCase {
 	}
 }
 
-// convertToSingleType - приведение к единому типу данных.
-func convertToSingleType(urlIn any) models.URL {
-	url1, ok1 := urlIn.(models.URL)
-	if ok1 {
-		return url1
-	}
-	url2, ok2 := urlIn.(models.URLCopyOne)
-	if ok2 {
-		return models.URL(url2)
-	}
-	return models.URL{}
+// Ping - проверка соединения с базой данных.
+func (urlUserCase *URLUseCase) Ping(ctx context.Context) error {
+	return urlUserCase.Repo.Ping(ctx)
 }
 
 // CreateURLOrdinary - создание короткого URL и его запись в базу данных.

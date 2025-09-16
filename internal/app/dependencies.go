@@ -32,7 +32,6 @@ func initRepoPostgres(cfg *config.Config) (*repository.RepoPostgres, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// defer repo.Close()
 
 	// выполнение миграций
 	err = repo.Migrations()

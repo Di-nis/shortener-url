@@ -34,6 +34,10 @@ func NewRepoPostgres(dataSourceName string) (*RepoPostgres, error) {
 	}, nil
 }
 
+func (repo *RepoPostgres) Ping(ctx context.Context) error {
+	return repo.db.PingContext(ctx)
+}
+
 func (repo *RepoPostgres) Close() error {
 	return repo.db.Close()
 }

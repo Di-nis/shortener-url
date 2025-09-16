@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -13,8 +14,6 @@ import (
 	"github.com/Di-nis/shortener-url/internal/usecase"
 
 	"github.com/go-chi/chi/v5"
-
-	"database/sql"
 
 	"context"
 	"time"
@@ -211,17 +210,17 @@ func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request)
 }
 
 func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
-	db, err := sql.Open("pgx", c.Config.DataBaseDSN)
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
-
-	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
 	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
-	}
 
-	res.WriteHeader(http.StatusOK)
+	if err := c.URLUseCase.Ping(ctx); err != nil {
+		switch {
+		case errors.Is(err, constants.ErrorMethodNotAllowed):
+			res.WriteHeader(http.StatusMethodNotAllowed)
+		default:
+			res.WriteHeader(http.StatusInternalServerError)
+		}
+	} else {
+		res.WriteHeader(http.StatusOK)
+	}
 }

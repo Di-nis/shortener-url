@@ -40,6 +40,10 @@ func NewRepoFile(fileStoragePath string, storage *Storage) *RepoFile {
 	}
 }
 
+func (repo *RepoFile) Ping(ctx context.Context) error {
+	return constants.ErrorMethodNotAllowed
+}
+
 // CreateBatch - сохранение URL в базу данных.
 func (repo *RepoFile) CreateBatch(ctx context.Context, urls []models.URL) error {
 	for _, url := range urls {
