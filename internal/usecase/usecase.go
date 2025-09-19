@@ -17,6 +17,7 @@ type URLRepository interface {
 	CreateOrdinary(context.Context, models.URL) error
 	GetOriginalURL(context.Context, string) (string, error)
 	GetShortURL(context.Context, string) (string, error)
+	GetAllURLs(context.Context, int) ([]models.URL, error)
 }
 
 // convertToSingleType - приведение к единому типу данных.
@@ -106,4 +107,13 @@ func (urlUserCase *URLUseCase) GetOriginalURL(ctx context.Context, shortURL stri
 	}
 
 	return originalURL, nil
+}
+
+// GetAllURLs - получение всех когда-либо сокращенных пользователем URL.
+func (urlUserCase *URLUseCase) GetAllURLs(ctx context.Context, userID int) ([]models.URL, error) {
+	urls, err := urlUserCase.Repo.GetAllURLs(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return urls, nil
 }

@@ -87,9 +87,9 @@ func (repo *RepoFile) CreateOrdinary(ctx context.Context, url models.URL) error 
 
 // GetOriginalURL - получение оригинального URL из базы данных.
 func (repo *RepoFile) GetOriginalURL(ctx context.Context, shortURL string) (string, error) {
-	for _, urlData := range repo.OriginalAndShortURL {
-		if urlData.Short == shortURL {
-			return urlData.Original, nil
+	for _, url := range repo.OriginalAndShortURL {
+		if url.Short == shortURL {
+			return url.Original, nil
 		}
 	}
 	return "", constants.ErrorURLNotExist
@@ -97,10 +97,23 @@ func (repo *RepoFile) GetOriginalURL(ctx context.Context, shortURL string) (stri
 
 // GetShortURL - получение оригинального URL из базы данных.
 func (repo *RepoFile) GetShortURL(ctx context.Context, originalURL string) (string, error) {
-	for _, urlData := range repo.OriginalAndShortURL {
-		if urlData.Original == originalURL {
-			return urlData.Short, nil
+	for _, url := range repo.OriginalAndShortURL {
+		if url.Original == originalURL {
+			return url.Short, nil
 		}
 	}
 	return "", constants.ErrorURLNotExist
+}
+
+
+// // GetAllURLs - получение всех когда-либо сокращенных пользователем URL.
+func (repo *RepoFile) GetAllURLs(ctx context.Context, userID int) ([]models.URL, error) {
+	var urls []models.URL
+
+	for _, url := range repo.OriginalAndShortURL {
+		if url.UserId == userID {
+			urls = append(urls, url)
+		}
+	}
+	return urls, nil
 }

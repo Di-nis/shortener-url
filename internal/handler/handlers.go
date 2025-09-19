@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -42,6 +43,7 @@ func (c *Controller) CreateRouter() http.Handler {
 	router.Post("/api/shorten/batch", c.createURLShortJSONBatch)
 	router.Post("/api/shorten", c.createURLShortJSON)
 	router.Post("/", c.createURLShortText)
+	router.Get("/api/user/urls", c.getAllURLs)
 	router.Get("/{short_url}", c.getlURLOriginal)
 	router.Get("/ping", c.pingDB)
 	return router
@@ -182,7 +184,57 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 	}
 }
 
-// getlURLOriginal - обрабатка HTTP-запроса: тип запроcа - GET, вовзвращает оригинальный URL.
+// getAllURLs - получение всех когда-либо сокращенных пользователем URL.
+func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
+	defer cancel()
+
+	var userID int
+
+	token := req.Header.Get("Authorization")
+	fmt.Println(token)
+
+	// TODO требуется определить userID из запроса клиента
+	defer req.Body.Close()
+
+	urls, err := c.URLUseCase.GetAllURLs(ctx, userID)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+	}
+
+	var urlsOut []models.URLCopyThree
+	var urlOut models.URLCopyThree
+
+	for _, url := range urls {
+		urlOut = models.URLCopyThree(url)
+		urlsOut = append(urlsOut, urlOut)
+	}
+
+	if len(urlsOut) == 0 {
+		res.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	bodyResult, err2 := json.Marshal(urlsOut)
+	if err2 != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+
+	_, err = res.Write([]byte(bodyResult))
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// getlURLOriginal - обрабатка HTTP-запроса: тип запроcа - GET, возвращает оригинальный URL.
 func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
 	defer cancel()

@@ -133,3 +133,36 @@ func (repo *RepoPostgres) GetOriginalURL(ctx context.Context, urlShort string) (
 	}
 	return urlOriginal, nil
 }
+
+// GetAllURLs - получение всех когда-либо сокращенных пользователем URL.
+func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID int) ([]models.URL, error) {
+	// stmt, err := repo.db.PrepareContext(ctx, "SELECT original, short FROM urls WHERE user_id = $1")
+	stmt, err := repo.db.PrepareContext(ctx, "SELECT original, short FROM urls")
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	// rows, err := stmt.QueryContext(ctx, userID)
+	rows, err := stmt.QueryContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// TODO на подумать над послежним параметром
+	urls := make([]models.URL, 0, 20)
+
+	for rows.Next() {
+		var url models.URL
+		err = rows.Scan(&url.Original, &url.Short)
+		if err != nil {
+			return nil, err
+		}
+
+		urls = append(urls, url)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	return urls, nil
+}

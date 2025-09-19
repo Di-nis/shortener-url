@@ -4,8 +4,13 @@ import (
 	"encoding/json"
 )
 
+type User struct {
+	ID int
+}
+
 type URL struct {
-	ID       string
+	UserId   int
+	URLID    string
 	Short    string
 	Original string
 }
@@ -18,7 +23,7 @@ func (url URL) MarshalJSON() ([]byte, error) {
 	}{
 		Short:    url.Short,
 		Original: url.Original,
-		ID:       url.ID,
+		ID:       url.URLID,
 	}
 
 	return json.Marshal(urlAlias)
@@ -37,12 +42,13 @@ func (url *URL) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	url.Original = urlAlias.Original
-	url.ID = urlAlias.ID
+	url.URLID = urlAlias.ID
 	return nil
 }
 
 type URLCopyOne struct {
-	ID       string
+	UserId   int
+	URLID    string
 	Short    string
 	Original string
 }
@@ -72,15 +78,15 @@ func (url *URLCopyOne) UnmarshalJSON(data []byte) error {
 }
 
 type URLCopyTwo struct {
-	ID       string `json:"uuid"`
+	UserId   int
+	URLID    string `json:"uuid"`
 	Short    string `json:"url_short"`
 	Original string `json:"url_original"`
 }
 
-type Request struct {
-	URLOriginal string `json:"url"`
-}
-
-type Response struct {
-	Result string `json:"result"`
+type URLCopyThree struct {
+	UserId   int    `json:"-"`
+	URLID    string `json:"-"`
+	Short    string `json:"url_short"`
+	Original string `json:"url_original"`
 }
