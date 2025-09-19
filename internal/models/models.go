@@ -9,7 +9,7 @@ type User struct {
 }
 
 type URL struct {
-	UserId   int
+	UserID   int
 	URLID    string
 	Short    string
 	Original string
@@ -47,7 +47,7 @@ func (url *URL) UnmarshalJSON(data []byte) error {
 }
 
 type URLCopyOne struct {
-	UserId   int
+	UserID   int
 	URLID    string
 	Short    string
 	Original string
@@ -78,14 +78,14 @@ func (url *URLCopyOne) UnmarshalJSON(data []byte) error {
 }
 
 type URLCopyTwo struct {
-	UserId   int
+	UserID   int
 	URLID    string `json:"uuid"`
 	Short    string `json:"url_short"`
 	Original string `json:"url_original"`
 }
 
 type URLCopyThree struct {
-	UserId   int    `json:"-"`
+	UserID   int    `json:"-"`
 	URLID    string `json:"-"`
 	Short    string `json:"url_short"`
 	Original string `json:"url_original"`

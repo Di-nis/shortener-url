@@ -145,6 +145,10 @@ func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID int) ([]models.
 
 	// rows, err := stmt.QueryContext(ctx, userID)
 	rows, err := stmt.QueryContext(ctx)
+	// требуется дополнительно уточнить, как писать
+	if rows.Err() != nil {
+		return nil, err
+	}
 	if err != nil {
 		return nil, err
 	}
