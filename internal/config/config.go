@@ -14,6 +14,7 @@ type Config struct {
 	LogLevel        string `env:"LOG_LEVEL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	DataBaseDSN     string `env:"DATABASE_DSN"`
+	JWTSecret       string `env:"JWT_SECRET"`
 }
 
 func (a *Config) Parse() {

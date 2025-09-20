@@ -13,6 +13,7 @@ import (
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/models"
 	"github.com/Di-nis/shortener-url/internal/usecase"
+	// "github.com/Di-nis/shortener-url/internal/authn"
 
 	"github.com/go-chi/chi/v5"
 
@@ -195,8 +196,7 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 	defer cancel()
 
 	var userID int
-
-	token := req.Header.Get("Authorization")
+	token, _ := req.Cookie("auth_token")
 	fmt.Println(token)
 
 	// TODO требуется определить userID из запроса клиента

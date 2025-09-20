@@ -78,7 +78,7 @@ func (url *URLCopyOne) UnmarshalJSON(data []byte) error {
 }
 
 type URLCopyTwo struct {
-	UserID   int
+	UserID   int    `json:"user_id"`
 	URLID    string `json:"uuid"`
 	Short    string `json:"url_short"`
 	Original string `json:"url_original"`

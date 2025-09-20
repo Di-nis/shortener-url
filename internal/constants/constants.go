@@ -2,10 +2,12 @@ package constants
 
 import (
 	"errors"
+	"time"
 )
 
 const (
 	HashLength = 8
+	TOKEN_EXP = time.Hour * 3
 )
 
 var (
