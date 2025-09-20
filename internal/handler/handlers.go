@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -86,7 +87,7 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 		return
 	}
 
-	urls, err := c.URLUseCase.CreateURLBatch(ctx, urls, userID)
+	urls, err := c.URLUseCase.CreateURLBatch(ctx, urls, userID, c.Config.BaseURL)
 	if err != nil {
 		res.WriteHeader(http.StatusConflict)
 		return
@@ -154,7 +155,7 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 
 	urlInOut.UserID = userID
 
-	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut)
+	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut, c.Config.BaseURL)
 
 	url.Short = addBaseURLToResponse(c.Config.BaseURL, url.Short)
 	urlInOut = models.URLCopyOne(url)
@@ -193,7 +194,6 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 
 	var userID string
 	cookie := req.Header.Get("Authorization")
-	
 
 	if cookie == "" {
 		userID = authn.GenerateUserID()
@@ -210,10 +210,11 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 		UserID:   userID,
 	}
 
-	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn)
+	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn, c.Config.BaseURL)
 	urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 
 	res.Header().Set("Content-Type", "text/plain")
+	fmt.Println("header", res.Header())
 
 	getStatusCode(res, err)
 
@@ -235,11 +236,22 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 
 	var userID string
 	cookie := req.Header.Get("Authorization")
+	fmt.Println("cookie", cookie)
 
 	if cookie == "" {
 		userID = authn.GenerateUserID()
 		token, _ := authn.BuildJWTString(userID, c.Config.JWTSecret)
 		res.Header().Set("Authorization", token)
+		cookieRes := &http.Cookie{
+			Name:     "auth_token",
+			Value:    token,
+			Expires:  time.Now().Add(24 * time.Hour),
+			Path:     "/",
+			Domain:   "localhost",
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+		}
+		http.SetCookie(res, cookieRes)
 		res.WriteHeader(http.StatusNoContent)
 		return
 	} else {
@@ -258,11 +270,12 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusInternalServerError)
 	}
 
-	var urlsOut []models.URLCopyThree
-	var urlOut models.URLCopyThree
+	var urlsOut []models.URLCopyFour
+	var urlOut models.URLCopyFour
 
 	for _, url := range urls {
-		urlOut = models.URLCopyThree(url)
+		urlOut = models.URLCopyFour(url)
+		urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 		urlsOut = append(urlsOut, urlOut)
 	}
 

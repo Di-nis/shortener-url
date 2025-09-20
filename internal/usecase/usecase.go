@@ -3,6 +3,8 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
+
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/Di-nis/shortener-url/internal/constants"
@@ -53,14 +55,15 @@ func (urlUserCase *URLUseCase) Ping(ctx context.Context) error {
 }
 
 // CreateURLOrdinary - создание короткого URL и его запись в базу данных.
-func (urlUserCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any) (models.URL, error) {
+func (urlUserCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any, baseURL string) (models.URL, error) {
 	var PgErr *pgconn.PgError
 
 	urlOrdinary := convertToSingleType(urlIn)
-	urlOrdinary.Short = urlUserCase.Service.ShortHash(urlOrdinary.Original, constants.HashLength)
+	urlOrdinary.Short = urlUserCase.Service.ShortHash(urlOrdinary.Original, constants.HashLength, baseURL)
 
 	err := urlUserCase.Repo.CreateOrdinary(ctx, urlOrdinary)
 
+	fmt.Println(err)
 	if err == nil {
 		return urlOrdinary, nil
 	}
@@ -80,11 +83,11 @@ func (urlUserCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any)
 }
 
 // CreateURLBatch - создание короткого URL и его запись в базу данных.
-func (urlUserCase *URLUseCase) CreateURLBatch(ctx context.Context, urls []models.URL, userID string) ([]models.URL, error) {
+func (urlUserCase *URLUseCase) CreateURLBatch(ctx context.Context, urls []models.URL, userID, baseURL string) ([]models.URL, error) {
 	var idxTemp int
 
 	for idx, url := range urls {
-		urls[idx].Short = urlUserCase.Service.ShortHash(url.Original, constants.HashLength)
+		urls[idx].Short = urlUserCase.Service.ShortHash(url.Original, constants.HashLength, baseURL)
 
 		if idx%1000 == 0 || idx == len(urls)-1 {
 			urlsTemp := urls[idxTemp : idx+1]

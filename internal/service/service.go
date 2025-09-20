@@ -1,6 +1,9 @@
 package service
 
-import "crypto/sha256"
+import (
+	"crypto/sha256"
+	// "fmt"
+)
 
 var base62Alphabet = []byte("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
@@ -28,7 +31,7 @@ func (service *Service) base62Encode(num uint64) string {
 }
 
 // ShortHash - создание хэш на основе входных данных.
-func (service *Service) ShortHash(data string, length int) string {
+func (service *Service) ShortHash(data string, length int, baseURL string) string {
 	var num uint64
 	hash := sha256.Sum256([]byte(data))
 	for i := range 8 {
@@ -38,6 +41,8 @@ func (service *Service) ShortHash(data string, length int) string {
 	b62 := service.base62Encode(num)
 	if len(b62) > length {
 		return b62[:length]
+		// return fmt.Sprintf("%s/%s", baseURL, b62[:length])
 	}
+	// return fmt.Sprintf("%s/%s", baseURL, b62)
 	return b62
 }

@@ -87,3 +87,10 @@ type URLCopyThree struct {
 	Short    string `json:"url_short"`
 	Original string `json:"url_original"`
 }
+
+
+type URLCopyFour struct {
+	UserID   string `json:"-"`
+	Short    string `json:"short_url"`
+	Original string `json:"original_url"`
+}
