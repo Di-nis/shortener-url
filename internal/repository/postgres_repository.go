@@ -57,26 +57,27 @@ func (repo *RepoPostgres) Migrations() error {
 	}
 
 	err3 := m.Up()
-	if err3 != nil {
-		return err3
+	// тут надо подумать над обработкой ошибок
+	if errors.Is(err3, migrate.ErrNoChange) {
+		return nil
 	}
 	return nil
 }
 
-func (repo *RepoPostgres) CreateOrdinary(ctx context.Context, url models.URL) error {
-	stmt, err := repo.db.PrepareContext(ctx, "INSERT INTO urls (original, short) VALUES ($1, $2)")
+func (repo *RepoPostgres) CreateOrdinary(ctx context.Context, url models.URL, userID string) error {
+	stmt, err := repo.db.PrepareContext(ctx, "INSERT INTO urls (original, short, user_id) VALUES ($1, $2, $3)")
 	if err != nil {
 		return err
 	}
 
-	_, err = stmt.ExecContext(ctx, url.Original, url.Short)
+	_, err = stmt.ExecContext(ctx, url.Original, url.Short, userID)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL) error {
+func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL, userID string) error {
 	tx, err := repo.db.Begin()
 
 	if err != nil {
@@ -85,13 +86,13 @@ func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL) er
 
 	defer tx.Rollback()
 
-	stmt, err := repo.db.PrepareContext(ctx, "INSERT INTO urls (original, short) VALUES ($1, $2)")
+	stmt, err := repo.db.PrepareContext(ctx, "INSERT INTO urls (original, short, user_id) VALUES ($1, $2, $3)")
 	if err != nil {
 		return err
 	}
 
 	for _, url := range urls {
-		_, err = stmt.ExecContext(ctx, url.Original, url.Short)
+		_, err = stmt.ExecContext(ctx, url.Original, url.Short, userID)
 	}
 	if err != nil {
 		return err
@@ -135,15 +136,14 @@ func (repo *RepoPostgres) GetOriginalURL(ctx context.Context, urlShort string) (
 
 // GetAllURLs - получение всех когда-либо сокращенных пользователем URL.
 func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID string) ([]models.URL, error) {
-	// stmt, err := repo.db.PrepareContext(ctx, "SELECT original, short FROM urls WHERE user_id = $1")
-	stmt, err := repo.db.PrepareContext(ctx, "SELECT original, short FROM urls")
+	stmt, err := repo.db.PrepareContext(ctx, "SELECT original, short FROM urls WHERE user_id = $1")
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
 	// rows, err := stmt.QueryContext(ctx, userID)
-	rows, err := stmt.QueryContext(ctx)
+	rows, err := stmt.QueryContext(ctx, userID)
 	// требуется дополнительно уточнить, как писать
 	if rows.Err() != nil {
 		return nil, err

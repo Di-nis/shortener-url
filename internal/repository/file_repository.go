@@ -45,7 +45,7 @@ func (repo *RepoFile) Ping(ctx context.Context) error {
 }
 
 // CreateBatch - сохранение URL в базу данных.
-func (repo *RepoFile) CreateBatch(ctx context.Context, urls []models.URL) error {
+func (repo *RepoFile) CreateBatch(ctx context.Context, urls []models.URL, userID string) error {
 	for _, url := range urls {
 		for _, urlDB := range repo.OriginalAndShortURL {
 			if urlDB.Original == url.Original {
@@ -66,7 +66,7 @@ func (repo *RepoFile) CreateBatch(ctx context.Context, urls []models.URL) error 
 }
 
 // CreateOrdinary - сохранение URL в базу данных.
-func (repo *RepoFile) CreateOrdinary(ctx context.Context, url models.URL) error {
+func (repo *RepoFile) CreateOrdinary(ctx context.Context, url models.URL, userID string) error {
 	for _, urlDB := range repo.OriginalAndShortURL {
 		if urlDB.Original == url.Original {
 			return constants.ErrorURLAlreadyExist

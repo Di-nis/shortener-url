@@ -3,16 +3,15 @@ package authn
 import (
 	"errors"
 	"fmt"
-	"time"
 	"math/rand"
+	"time"
 
 	"github.com/Di-nis/shortener-url/internal/constants"
-	"github.com/oklog/ulid/v2"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/oklog/ulid/v2"
 )
 
-
-func generateUserID() string {
+func GenerateUserID() string {
 	t := time.Now()
 	entropy := rand.New(rand.NewSource(t.UnixNano()))
 	id := ulid.MustNew(ulid.Timestamp(t), entropy).String()
@@ -23,13 +22,13 @@ func generateUserID() string {
 // и одно пользовательское — UserID
 type Claims struct {
 	jwt.RegisteredClaims
-	UserID int
+	UserID string
 }
 
 // BuildJWTString создаёт токен и возвращает его в виде строки.
-func BuildJWTString(userID int, secretKey string) (string, error) {
-	if userID == 0 {
-		return "", errors.New("user id is zero")
+func BuildJWTString(userID string, secretKey string) (string, error) {
+	if userID == "" {
+		return "", errors.New("user id is empty")
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
@@ -48,7 +47,7 @@ func BuildJWTString(userID int, secretKey string) (string, error) {
 	return tokenString, nil
 }
 
-func GetUserID(tokenString, secretKey string) int {
+func GetUserID(tokenString, secretKey string) string {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims,
 		func(t *jwt.Token) (interface{}, error) {
@@ -57,13 +56,11 @@ func GetUserID(tokenString, secretKey string) int {
 			}
 			return []byte(secretKey), nil
 		})
-	if err != nil {
-		return -1
-	}
+	if err != nil {return "-1"}
 
 	if !token.Valid {
 		fmt.Println("Token is not valid")
-		return -1
+		return "-1"
 	}
 
 	fmt.Println("Token os valid")

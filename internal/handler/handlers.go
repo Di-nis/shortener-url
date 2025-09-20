@@ -13,7 +13,7 @@ import (
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/models"
 	"github.com/Di-nis/shortener-url/internal/usecase"
-	// "github.com/Di-nis/shortener-url/internal/authn"
+	"github.com/Di-nis/shortener-url/internal/authn"
 
 	"github.com/go-chi/chi/v5"
 
@@ -67,6 +67,9 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 		return
 	}
 
+	var userID string
+	// тут реализзовать вытаскивание userID из запроса
+
 	defer req.Body.Close()
 
 	var urls []models.URL
@@ -75,7 +78,7 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 		return
 	}
 
-	urls, err := c.URLUseCase.CreateURLBatch(ctx, urls)
+	urls, err := c.URLUseCase.CreateURLBatch(ctx, urls, userID)
 	if err != nil {
 		res.WriteHeader(http.StatusConflict)
 		return
@@ -117,6 +120,10 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	var userID string
+	userID = "12rdscjh"
+	// тут реализзовать вытаскивание userID из запроса
+
 	defer req.Body.Close()
 
 	var (
@@ -129,7 +136,7 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut)
+	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut, userID)
 
 	url.Short = addBaseURLToResponse(c.Config.BaseURL, url.Short)
 	urlInOut = models.URLCopyOne(url)
@@ -165,6 +172,8 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
 		return
 	}
+	var userID string
+	// тут реализзовать вытаскивание userID из запроса
 
 	defer req.Body.Close()
 
@@ -172,7 +181,7 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 		Original: string(bodyBytes),
 	}
 
-	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn)
+	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn, userID)
 	urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 
 	res.Header().Set("Content-Type", "text/plain")
@@ -195,9 +204,17 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
 	defer cancel()
 
-	var userID string
-	token, _ := req.Cookie("auth_token")
-	fmt.Println(token)
+	cookie, err := req.Cookie("auth_token")
+	if err != nil {
+		if err == http.ErrNoCookie {
+			res.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+	}
+	fmt.Println(cookie.Value)
+
+	userID := authn.GetUserID(cookie.Value, c.Config.JWTSecret)
+	fmt.Println(userID)
 
 	// TODO требуется определить userID из запроса клиента
 	defer req.Body.Close()
