@@ -64,13 +64,13 @@ func (repo *RepoPostgres) Migrations() error {
 	return nil
 }
 
-func (repo *RepoPostgres) CreateOrdinary(ctx context.Context, url models.URL, userID string) error {
+func (repo *RepoPostgres) CreateOrdinary(ctx context.Context, url models.URL) error {
 	stmt, err := repo.db.PrepareContext(ctx, "INSERT INTO urls (original, short, user_id) VALUES ($1, $2, $3)")
 	if err != nil {
 		return err
 	}
 
-	_, err = stmt.ExecContext(ctx, url.Original, url.Short, userID)
+	_, err = stmt.ExecContext(ctx, url.Original, url.Short, url.UserID)
 	if err != nil {
 		return err
 	}

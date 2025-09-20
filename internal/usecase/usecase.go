@@ -14,7 +14,7 @@ import (
 type URLRepository interface {
 	Ping(context.Context) error
 	CreateBatch(context.Context, []models.URL, string) error
-	CreateOrdinary(context.Context, models.URL, string) error
+	CreateOrdinary(context.Context, models.URL) error
 	GetOriginalURL(context.Context, string) (string, error)
 	GetShortURL(context.Context, string) (string, error)
 	GetAllURLs(context.Context, string) ([]models.URL, error)
@@ -53,13 +53,13 @@ func (urlUserCase *URLUseCase) Ping(ctx context.Context) error {
 }
 
 // CreateURLOrdinary - создание короткого URL и его запись в базу данных.
-func (urlUserCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any, userID string) (models.URL, error) {
+func (urlUserCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any) (models.URL, error) {
 	var PgErr *pgconn.PgError
 
 	urlOrdinary := convertToSingleType(urlIn)
 	urlOrdinary.Short = urlUserCase.Service.ShortHash(urlOrdinary.Original, constants.HashLength)
 
-	err := urlUserCase.Repo.CreateOrdinary(ctx, urlOrdinary, userID)
+	err := urlUserCase.Repo.CreateOrdinary(ctx, urlOrdinary)
 
 	if err == nil {
 		return urlOrdinary, nil

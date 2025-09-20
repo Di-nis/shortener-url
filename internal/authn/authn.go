@@ -33,7 +33,6 @@ func BuildJWTString(userID string, secretKey string) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			// когда создан токен
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(constants.TokenExp)),
 		},
 		UserID: userID,
@@ -63,7 +62,7 @@ func GetUserID(tokenString, secretKey string) string {
 		return "-1"
 	}
 
-	fmt.Println("Token os valid")
+	fmt.Println("Token is valid")
 	return claims.UserID
 }
 

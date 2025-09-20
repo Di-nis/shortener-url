@@ -53,6 +53,7 @@ func (repo *RepoFile) CreateBatch(ctx context.Context, urls []models.URL, userID
 			}
 		}
 
+		url.UserID = userID
 		repo.OriginalAndShortURL = append(repo.OriginalAndShortURL, url)
 
 		if repo.FileStoragePath != "" {
@@ -66,7 +67,7 @@ func (repo *RepoFile) CreateBatch(ctx context.Context, urls []models.URL, userID
 }
 
 // CreateOrdinary - сохранение URL в базу данных.
-func (repo *RepoFile) CreateOrdinary(ctx context.Context, url models.URL, userID string) error {
+func (repo *RepoFile) CreateOrdinary(ctx context.Context, url models.URL) error {
 	for _, urlDB := range repo.OriginalAndShortURL {
 		if urlDB.Original == url.Original {
 			return constants.ErrorURLAlreadyExist
