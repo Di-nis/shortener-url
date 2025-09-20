@@ -7,7 +7,7 @@ import (
 
 const (
 	HashLength = 8
-	TOKEN_EXP = time.Hour * 3
+	TokenExp   = time.Hour * 3
 )
 
 var (

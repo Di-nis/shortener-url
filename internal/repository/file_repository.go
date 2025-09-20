@@ -106,7 +106,7 @@ func (repo *RepoFile) GetShortURL(ctx context.Context, originalURL string) (stri
 }
 
 // // GetAllURLs - получение всех когда-либо сокращенных пользователем URL.
-func (repo *RepoFile) GetAllURLs(ctx context.Context, userID int) ([]models.URL, error) {
+func (repo *RepoFile) GetAllURLs(ctx context.Context, userID string) ([]models.URL, error) {
 	var urls []models.URL
 
 	for _, url := range repo.OriginalAndShortURL {

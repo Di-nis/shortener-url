@@ -3,10 +3,21 @@ package authn
 import (
 	"errors"
 	"fmt"
-	"github.com/Di-nis/shortener-url/internal/constants"
-	"github.com/golang-jwt/jwt/v5"
 	"time"
+	"math/rand"
+
+	"github.com/Di-nis/shortener-url/internal/constants"
+	"github.com/oklog/ulid/v2"
+	"github.com/golang-jwt/jwt/v5"
 )
+
+
+func generateUserID() string {
+	t := time.Now()
+	entropy := rand.New(rand.NewSource(t.UnixNano()))
+	id := ulid.MustNew(ulid.Timestamp(t), entropy).String()
+	return id
+}
 
 // Claims — структура утверждений, которая включает стандартные утверждения
 // и одно пользовательское — UserID
@@ -24,7 +35,7 @@ func BuildJWTString(userID int, secretKey string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			// когда создан токен
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(constants.TOKEN_EXP)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(constants.TokenExp)),
 		},
 		UserID: userID,
 	})
@@ -58,7 +69,6 @@ func GetUserID(tokenString, secretKey string) int {
 	fmt.Println("Token os valid")
 	return claims.UserID
 }
-
 
 // // getToken - получение токена из заголовка запроса.
 // func getToken(headerAuthorization string) string {

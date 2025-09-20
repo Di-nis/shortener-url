@@ -195,7 +195,7 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
 	defer cancel()
 
-	var userID int
+	var userID string
 	token, _ := req.Cookie("auth_token")
 	fmt.Println(token)
 

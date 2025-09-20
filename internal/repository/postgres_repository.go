@@ -57,10 +57,9 @@ func (repo *RepoPostgres) Migrations() error {
 	}
 
 	err3 := m.Up()
-	if errors.Is(err3, migrate.ErrNoChange) {
-		return nil
+	if err3 != nil {
+		return err3
 	}
-
 	return nil
 }
 
@@ -135,7 +134,7 @@ func (repo *RepoPostgres) GetOriginalURL(ctx context.Context, urlShort string) (
 }
 
 // GetAllURLs - получение всех когда-либо сокращенных пользователем URL.
-func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID int) ([]models.URL, error) {
+func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID string) ([]models.URL, error) {
 	// stmt, err := repo.db.PrepareContext(ctx, "SELECT original, short FROM urls WHERE user_id = $1")
 	stmt, err := repo.db.PrepareContext(ctx, "SELECT original, short FROM urls")
 	if err != nil {
