@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -67,35 +66,17 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 		return
 	}
 
-	//
 	var userID string
-	cookie, err := req.Cookie("auth_token")
-	fmt.Println("err", err)
+	cookie := req.Header.Get("Authorization")
+	
 
-	// 	Если кука присутствует в запросе, но не содержит ID пользователя, хендлер должен возвращать HTTP-статус 401 Unauthorized.
-	if err != nil && err == http.ErrNoCookie {
+	if cookie == "" {
 		userID = authn.GenerateUserID()
 		token, _ := authn.BuildJWTString(userID, c.Config.JWTSecret)
-		cookieRes := &http.Cookie{
-			Name:     "auth_token",
-			Value:    token,
-			Expires:  time.Now().Add(24 * time.Hour),
-			Path:     "/",
-			Domain:   "localhost",
-			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
-		}
-		http.SetCookie(res, cookieRes)
-	} else if err == nil {
-		userID = authn.GetUserID(cookie.Value, c.Config.JWTSecret)
-		if userID == "-1" {
-			res.WriteHeader(http.StatusUnauthorized)
-			return
-		}
+		res.Header().Set("Authorization", token)
 	} else {
-		userID = ""
+		res.Header().Set("Authorization", cookie)
 	}
-	//
 
 	defer req.Body.Close()
 
@@ -105,7 +86,7 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 		return
 	}
 
-	urls, err = c.URLUseCase.CreateURLBatch(ctx, urls, userID)
+	urls, err := c.URLUseCase.CreateURLBatch(ctx, urls, userID)
 	if err != nil {
 		res.WriteHeader(http.StatusConflict)
 		return
@@ -147,39 +128,17 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	//
 	var userID string
-	cookie, err := req.Cookie("auth_token")
-	fmt.Println("err", err)
+	cookie := req.Header.Get("Authorization")
+	
 
-	// тут реализовать вытаскивание userID из запроса
-	// Выдавать пользователю симметрично подписанную куку,
-	// содержащую уникальный идентификатор пользователя, если такой куки не существует или она не проходит проверку подлинности.
-
-	// 	Если кука присутствует в запросе, но не содержит ID пользователя, хендлер должен возвращать HTTP-статус 401 Unauthorized.
-	if err != nil && err == http.ErrNoCookie {
+	if cookie == "" {
 		userID = authn.GenerateUserID()
 		token, _ := authn.BuildJWTString(userID, c.Config.JWTSecret)
-		cookieRes := &http.Cookie{
-			Name:     "auth_token",
-			Value:    token,
-			Expires:  time.Now().Add(24 * time.Hour),
-			Path:     "/",
-			Domain:   "localhost",
-			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
-		}
-		http.SetCookie(res, cookieRes)
-	} else if err == nil {
-		userID = authn.GetUserID(cookie.Value, c.Config.JWTSecret)
-		if userID == "-1" {
-			res.WriteHeader(http.StatusUnauthorized)
-			return
-		}
+		res.Header().Set("Authorization", token)
 	} else {
-		userID = ""
+		res.Header().Set("Authorization", cookie)
 	}
-	//
 
 	defer req.Body.Close()
 
@@ -195,7 +154,7 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 
 	urlInOut.UserID = userID
 
-	url, err = c.URLUseCase.CreateURLOrdinary(ctx, urlInOut)
+	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut)
 
 	url.Short = addBaseURLToResponse(c.Config.BaseURL, url.Short)
 	urlInOut = models.URLCopyOne(url)
@@ -232,40 +191,17 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	//
 	var userID string
-	cookie, err := req.Cookie("auth_token")
-	fmt.Println("err", err)
+	cookie := req.Header.Get("Authorization")
+	
 
-	// тут реализовать вытаскивание userID из запроса
-	// Выдавать пользователю симметрично подписанную куку,
-	// содержащую уникальный идентификатор пользователя, если такой куки не существует или она не проходит проверку подлинности.
-
-	// 	Если кука присутствует в запросе, но не содержит ID пользователя, хендлер должен возвращать HTTP-статус 401 Unauthorized.
-	if err != nil && err == http.ErrNoCookie {
+	if cookie == "" {
 		userID = authn.GenerateUserID()
 		token, _ := authn.BuildJWTString(userID, c.Config.JWTSecret)
-		cookieRes := &http.Cookie{
-			Name:     "auth_token",
-			Value:    token,
-			Expires:  time.Now().Add(24 * time.Hour),
-			Path:     "/",
-			Domain:   "localhost",
-			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
-		}
-		http.SetCookie(res, cookieRes)
 		res.Header().Set("Authorization", token)
-	} else if err == nil {
-		userID = authn.GetUserID(cookie.Value, c.Config.JWTSecret)
-		if userID == "-1" {
-			res.WriteHeader(http.StatusUnauthorized)
-			return
-		}
 	} else {
-		userID = ""
+		res.Header().Set("Authorization", cookie)
 	}
-	//
 
 	defer req.Body.Close()
 
@@ -298,49 +234,21 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 	defer cancel()
 
 	var userID string
-	cookie, err := req.Cookie("auth_token")
-	fmt.Println("err", err)
+	cookie := req.Header.Get("Authorization")
 
-	// 	Если кука присутствует в запросе, но не содержит ID пользователя, хендлер должен возвращать HTTP-статус 401 Unauthorized.
-	if err != nil && err == http.ErrNoCookie {
+	if cookie == "" {
 		userID = authn.GenerateUserID()
 		token, _ := authn.BuildJWTString(userID, c.Config.JWTSecret)
-		cookieRes := &http.Cookie{
-			Name:     "auth_token",
-			Value:    token,
-			Expires:  time.Now().Add(24 * time.Hour),
-			Path:     "/",
-			Domain:   "localhost",
-			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
-		}
-		http.SetCookie(res, cookieRes)
 		res.Header().Set("Authorization", token)
 		res.WriteHeader(http.StatusNoContent)
 		return
-	} else if err == nil {
-		userID = authn.GetUserID(cookie.Value, c.Config.JWTSecret)
+	} else {
+		userID = authn.GetUserID(cookie, c.Config.JWTSecret)
 		if userID == "-1" {
-			userID = authn.GenerateUserID()
-			token, _ := authn.BuildJWTString(userID, c.Config.JWTSecret)
-			cookieRes := &http.Cookie{
-				Name:     "auth_token",
-				Value:    token,
-				Expires:  time.Now().Add(24 * time.Hour),
-				Path:     "/",
-				Domain:   "localhost",
-				HttpOnly: true,
-				SameSite: http.SameSiteLaxMode,
-			}
-			http.SetCookie(res, cookieRes)
-			res.Header().Set("Authorization", token)
 			res.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-	} else {
-		userID = ""
 	}
-	//
 
 	// TODO требуется определить userID из запроса клиента
 	defer req.Body.Close()
