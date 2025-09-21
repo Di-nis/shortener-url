@@ -15,7 +15,7 @@ import (
 // URLRepository - интерфейс для базы данных.
 type URLRepository interface {
 	Ping(context.Context) error
-	CreateBatch(context.Context, []models.URL, string) error
+	CreateBatch(context.Context, []models.URL) error
 	CreateOrdinary(context.Context, models.URL) error
 	GetOriginalURL(context.Context, string) (string, error)
 	GetShortURL(context.Context, string) (string, error)
@@ -83,7 +83,7 @@ func (urlUserCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any,
 }
 
 // CreateURLBatch - создание короткого URL и его запись в базу данных.
-func (urlUserCase *URLUseCase) CreateURLBatch(ctx context.Context, urls []models.URL, userID, baseURL string) ([]models.URL, error) {
+func (urlUserCase *URLUseCase) CreateURLBatch(ctx context.Context, urls []models.URL, baseURL string) ([]models.URL, error) {
 	var idxTemp int
 
 	for idx, url := range urls {
@@ -93,7 +93,7 @@ func (urlUserCase *URLUseCase) CreateURLBatch(ctx context.Context, urls []models
 			urlsTemp := urls[idxTemp : idx+1]
 			idxTemp = idx + 1
 
-			err := urlUserCase.Repo.CreateBatch(ctx, urlsTemp, userID)
+			err := urlUserCase.Repo.CreateBatch(ctx, urlsTemp)
 			if err != nil {
 				return nil, err
 			}

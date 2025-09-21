@@ -45,7 +45,7 @@ func (repo *RepoFile) Ping(ctx context.Context) error {
 }
 
 // CreateBatch - сохранение URL в базу данных.
-func (repo *RepoFile) CreateBatch(ctx context.Context, urls []models.URL, userID string) error {
+func (repo *RepoFile) CreateBatch(ctx context.Context, urls []models.URL) error {
 	for _, url := range urls {
 		for _, urlDB := range repo.OriginalAndShortURL {
 			if urlDB.Original == url.Original {
@@ -53,7 +53,6 @@ func (repo *RepoFile) CreateBatch(ctx context.Context, urls []models.URL, userID
 			}
 		}
 
-		url.UserID = userID
 		repo.OriginalAndShortURL = append(repo.OriginalAndShortURL, url)
 
 		if repo.FileStoragePath != "" {

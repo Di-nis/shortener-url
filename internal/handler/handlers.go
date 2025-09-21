@@ -3,7 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+	// "fmt"
 	"io"
 	"log"
 	"net/http"
@@ -12,6 +12,7 @@ import (
 	"github.com/Di-nis/shortener-url/internal/authn"
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/constants"
+	"github.com/Di-nis/shortener-url/internal/logger"
 	"github.com/Di-nis/shortener-url/internal/models"
 	"github.com/Di-nis/shortener-url/internal/usecase"
 
@@ -20,6 +21,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -41,14 +43,56 @@ func NewСontroller(urlUseCase *usecase.URLUseCase, config *config.Config) *Cont
 func (c *Controller) CreateRouter() http.Handler {
 	router := chi.NewRouter()
 
+	router.Use(authn.AuthMiddleware, logger.WithLogging)
+
 	router.Post("/api/shorten/batch", c.createURLShortJSONBatch)
 	router.Post("/api/shorten", c.createURLShortJSON)
 	router.Post("/", c.createURLShortText)
 	router.Get("/api/user/urls", c.getAllURLs)
 	router.Get("/{short_url}", c.getlURLOriginal)
 	router.Get("/ping", c.pingDB)
+
 	return router
 }
+
+// // AuthMiddleware - аутентификация пользователя.
+// func (c *Controller) AuthMiddleware(next http.Handler) http.Handler {
+// 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+// 		var userID string
+// 		tokenString := req.Header.Get("Authorization")
+
+// 		if tokenString == "" {
+// 			userID = authn.GenerateUserID()
+// 			newToken, err := authn.BuildJWTString(userID, c.Config.JWTSecret)
+// 			if err != nil {
+// 				http.Error(res, "Ошибка создания токена", http.StatusInternalServerError)
+// 				return
+// 			}
+// 			newCookie := &http.Cookie{
+// 				Name:     "auth_token",
+// 				Value:    newToken,
+// 				Expires:  time.Now().Add(24 * time.Hour),
+// 				Path:     "/",
+// 				Domain:   "localhost",
+// 				HttpOnly: true,
+// 				SameSite: http.SameSiteLaxMode,
+// 			}
+// 			http.SetCookie(res, newCookie)
+// 			res.WriteHeader(http.StatusNoContent)
+// 			res.Header().Set("Authorization", newToken)
+// 		} else {
+// 			userID = authn.GetUserID(tokenString, c.Config.JWTSecret)
+// 			if userID == "-1" {
+// 				http.Error(res, "Невалидный токен", http.StatusUnauthorized)
+// 				return
+// 			}
+// 			res.Header().Set("Authorization", tokenString)
+// 		}
+
+// 		ctx := context.WithValue(req.Context(), constants.UserIDKey, userID)
+// 		next.ServeHTTP(res, req.WithContext(ctx))
+// 	})
+// }
 
 // createURLShortJSON - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
 func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.Request) {
@@ -60,42 +104,53 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 		return
 	}
 
-	bodyBytes, _ := io.ReadAll(req.Body)
-	if reflect.DeepEqual(bodyBytes, []byte{}) {
+	bodyBytes, err := io.ReadAll(req.Body)
+	if err != nil {
 		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
-		res.Header().Set("Content-Type", "")
+		return
+	}
+	defer req.Body.Close()
+
+	if len(bodyBytes) == 0 {
+		http.Error(res, "Тело запроса пустое", http.StatusBadRequest)
 		return
 	}
 
-	var userID string
-	cookie := req.Header.Get("Authorization")
-	
-
-	if cookie == "" {
-		userID = authn.GenerateUserID()
-		token, _ := authn.BuildJWTString(userID, c.Config.JWTSecret)
-		res.Header().Set("Authorization", token)
-	} else {
-		res.Header().Set("Authorization", cookie)
-	}
-
-	defer req.Body.Close()
+	userID := req.Context().Value(constants.UserIDKey).(string)
 
 	var urls []models.URL
 	if err := json.Unmarshal(bodyBytes, &urls); err != nil {
-		http.Error(res, err.Error(), http.StatusBadRequest)
+		http.Error(res, "Неверный формат JSON", http.StatusBadRequest)
 		return
 	}
 
-	urls, err := c.URLUseCase.CreateURLBatch(ctx, urls, userID, c.Config.BaseURL)
+	if len(urls) == 0 {
+		http.Error(res, "Пустой массив URL", http.StatusBadRequest)
+		return
+	}
+
+	for i := range urls {
+		urls[i].UserID = userID
+	}
+
+	createdURLs, err := c.URLUseCase.CreateURLBatch(ctx, urls, c.Config.BaseURL)
 	if err != nil {
-		res.WriteHeader(http.StatusConflict)
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			res.WriteHeader(http.StatusConflict)
+		} else {
+			http.Error(res, "Ошибка создания URL", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	for idx := range urls {
-		urls[idx].Short = addBaseURLToResponse(c.Config.BaseURL, urls[idx].Short)
+	// Добавление базового URL
+	for i := range createdURLs {
+		createdURLs[i].Short = addBaseURLToResponse(c.Config.BaseURL, createdURLs[i].Short)
 	}
+
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusCreated)
 
 	bodyResult, err := json.Marshal(urls)
 	if err != nil {
@@ -103,12 +158,9 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 		return
 	}
 
-	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusCreated)
-
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Ошибка записи ответа: %v", err)
 	}
 }
 
@@ -125,23 +177,14 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 	bodyBytes, _ := io.ReadAll(req.Body)
 	if reflect.DeepEqual(bodyBytes, []byte{}) {
 		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
-		res.Header().Set("Content-Type", "")
+		// res.Header().Set("Content-Type", "")
 		return
 	}
 
-	var userID string
-	cookie := req.Header.Get("Authorization")
-	
-
-	if cookie == "" {
-		userID = authn.GenerateUserID()
-		token, _ := authn.BuildJWTString(userID, c.Config.JWTSecret)
-		res.Header().Set("Authorization", token)
-	} else {
-		res.Header().Set("Authorization", cookie)
-	}
-
 	defer req.Body.Close()
+
+	// Получение userID через middleware Auth
+	userID := req.Context().Value(constants.UserIDKey).(string)
 
 	var (
 		urlInOut models.URLCopyOne
@@ -192,18 +235,10 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	var userID string
-	cookie := req.Header.Get("Authorization")
-
-	if cookie == "" {
-		userID = authn.GenerateUserID()
-		token, _ := authn.BuildJWTString(userID, c.Config.JWTSecret)
-		res.Header().Set("Authorization", token)
-	} else {
-		res.Header().Set("Authorization", cookie)
-	}
-
 	defer req.Body.Close()
+
+	// Получение userID через middleware Auth
+	userID := req.Context().Value(constants.UserIDKey).(string)
 
 	urlIn := models.URL{
 		Original: string(bodyBytes),
@@ -214,7 +249,7 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 	urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 
 	res.Header().Set("Content-Type", "text/plain")
-	fmt.Println("header", res.Header())
+	// fmt.Println("header", res.Header())
 
 	getStatusCode(res, err)
 
@@ -226,44 +261,17 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 
 // getAllURLs - получение всех когда-либо сокращенных пользователем URL.
 func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
+	defer cancel()
+
 	if req.Method != http.MethodGet {
 		res.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
-	defer cancel()
-
-	var userID string
-	cookie := req.Header.Get("Authorization")
-	fmt.Println("cookie", cookie)
-
-	if cookie == "" {
-		userID = authn.GenerateUserID()
-		token, _ := authn.BuildJWTString(userID, c.Config.JWTSecret)
-		res.Header().Set("Authorization", token)
-		cookieRes := &http.Cookie{
-			Name:     "auth_token",
-			Value:    token,
-			Expires:  time.Now().Add(24 * time.Hour),
-			Path:     "/",
-			Domain:   "localhost",
-			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
-		}
-		http.SetCookie(res, cookieRes)
-		res.WriteHeader(http.StatusNoContent)
-		return
-	} else {
-		userID = authn.GetUserID(cookie, c.Config.JWTSecret)
-		if userID == "-1" {
-			res.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-	}
-
-	// TODO требуется определить userID из запроса клиента
 	defer req.Body.Close()
+
+	userID := req.Context().Value(constants.UserIDKey).(string)
 
 	urls, err := c.URLUseCase.GetAllURLs(ctx, userID)
 	if err != nil {

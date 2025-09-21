@@ -5,9 +5,12 @@ import (
 	"time"
 )
 
+type contextKey string
+
 const (
-	HashLength = 8
-	TokenExp   = time.Hour * 3
+	HashLength            = 8
+	TokenExp              = time.Hour * 3
+	UserIDKey  contextKey = "userID"
 )
 
 var (

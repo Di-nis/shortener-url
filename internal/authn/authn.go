@@ -4,12 +4,58 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"time"
 
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/oklog/ulid/v2"
+
+	"net/http"
+
+	"context"
+	"time"
+	"os"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
+
+// AuthMiddleware - аутентификация пользователя.
+func AuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		var userID string
+		JWTSecret := os.Getenv("JWT_SECRET")
+		tokenString := req.Header.Get("Authorization")
+
+		if tokenString == "" {
+			userID = GenerateUserID()
+			newToken, err := BuildJWTString(userID, JWTSecret)
+			if err != nil {
+				http.Error(res, "Ошибка создания токена", http.StatusInternalServerError)
+				return
+			}
+			newCookie := &http.Cookie{
+				Name:     "auth_token",
+				Value:    newToken,
+				Expires:  time.Now().Add(24 * time.Hour),
+				Path:     "/",
+				Domain:   "localhost",
+				HttpOnly: true,
+				SameSite: http.SameSiteLaxMode,
+			}
+			http.SetCookie(res, newCookie)
+			res.Header().Set("Authorization", newToken)
+		} else {
+			userID = GetUserID(tokenString, JWTSecret)
+			if userID == "-1" {
+				http.Error(res, "Невалидный токен", http.StatusUnauthorized)
+				return
+			}
+			res.Header().Set("Authorization", tokenString)
+		}
+
+		ctx := context.WithValue(req.Context(), constants.UserIDKey, userID)
+		next.ServeHTTP(res, req.WithContext(ctx))
+	})
+}
 
 func GenerateUserID() string {
 	t := time.Now()
@@ -60,10 +106,8 @@ func GetUserID(tokenString, secretKey string) string {
 	}
 
 	if !token.Valid {
-		fmt.Println("Token is not valid")
 		return "-1"
 	}
 
-	fmt.Println("Token is valid")
 	return claims.UserID
 }

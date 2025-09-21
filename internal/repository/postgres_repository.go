@@ -77,7 +77,7 @@ func (repo *RepoPostgres) CreateOrdinary(ctx context.Context, url models.URL) er
 	return nil
 }
 
-func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL, userID string) error {
+func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL) error {
 	tx, err := repo.db.Begin()
 
 	if err != nil {
@@ -92,7 +92,7 @@ func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL, us
 	}
 
 	for _, url := range urls {
-		_, err = stmt.ExecContext(ctx, url.Original, url.Short, userID)
+		_, err = stmt.ExecContext(ctx, url.Original, url.Short, url.UserID)
 	}
 	if err != nil {
 		return err
