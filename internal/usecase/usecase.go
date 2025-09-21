@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -63,7 +62,6 @@ func (urlUserCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any,
 
 	err := urlUserCase.Repo.CreateOrdinary(ctx, urlOrdinary)
 
-	fmt.Println(err)
 	if err == nil {
 		return urlOrdinary, nil
 	}
