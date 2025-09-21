@@ -55,7 +55,9 @@ func GetUserID(tokenString, secretKey string) string {
 			}
 			return []byte(secretKey), nil
 		})
-	if err != nil {return "-1"}
+	if err != nil {
+		return "-1"
+	}
 
 	if !token.Valid {
 		fmt.Println("Token is not valid")
@@ -65,14 +67,3 @@ func GetUserID(tokenString, secretKey string) string {
 	fmt.Println("Token is valid")
 	return claims.UserID
 }
-
-// // getToken - получение токена из заголовка запроса.
-// func getToken(headerAuthorization string) string {
-// 	if headerAuthorization != "" {
-// 		bearerToken := strings.Split(headerAuthorization, " ")
-// 		if len(bearerToken) == 2 {
-// 			return bearerToken[1]
-// 		}
-// 	}
-// 	return ""
-// }

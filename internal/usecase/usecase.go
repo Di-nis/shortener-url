@@ -59,7 +59,7 @@ func (urlUserCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any,
 	var PgErr *pgconn.PgError
 
 	urlOrdinary := convertToSingleType(urlIn)
-	urlOrdinary.Short = urlUserCase.Service.ShortHash(urlOrdinary.Original, constants.HashLength, baseURL)
+	urlOrdinary.Short = urlUserCase.Service.ShortHash(urlOrdinary.Original, constants.HashLength)
 
 	err := urlUserCase.Repo.CreateOrdinary(ctx, urlOrdinary)
 
@@ -87,7 +87,7 @@ func (urlUserCase *URLUseCase) CreateURLBatch(ctx context.Context, urls []models
 	var idxTemp int
 
 	for idx, url := range urls {
-		urls[idx].Short = urlUserCase.Service.ShortHash(url.Original, constants.HashLength, baseURL)
+		urls[idx].Short = urlUserCase.Service.ShortHash(url.Original, constants.HashLength)
 
 		if idx%1000 == 0 || idx == len(urls)-1 {
 			urlsTemp := urls[idxTemp : idx+1]
