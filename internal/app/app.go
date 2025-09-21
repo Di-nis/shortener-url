@@ -3,8 +3,6 @@ package app
 import (
 	"net/http"
 
-	"github.com/Di-nis/shortener-url/internal/compress"
-	// "github.com/Di-nis/shortener-url/internal/logger"
 	"github.com/Di-nis/shortener-url/internal/service"
 )
 
@@ -22,6 +20,5 @@ func Run() error {
 
 	svc := service.NewService()
 	router := setupRouter(cfg, repo, svc)
-	// return http.ListenAndServe(cfg.ServerAddress, logger.WithLogging(compress.GzipMiddleware(router)))
-	return http.ListenAndServe(cfg.ServerAddress, compress.GzipMiddleware(router))
+	return http.ListenAndServe(cfg.ServerAddress, router)
 }

@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"errors"
-	// "fmt"
 	"io"
 	"log"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/Di-nis/shortener-url/internal/authn"
 	"github.com/Di-nis/shortener-url/internal/config"
+	"github.com/Di-nis/shortener-url/internal/compress"
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/logger"
 	"github.com/Di-nis/shortener-url/internal/models"
@@ -43,7 +43,7 @@ func NewСontroller(urlUseCase *usecase.URLUseCase, config *config.Config) *Cont
 func (c *Controller) CreateRouter() http.Handler {
 	router := chi.NewRouter()
 
-	router.Use(authn.AuthMiddleware, logger.WithLogging)
+	router.Use(authn.AuthMiddleware, logger.WithLogging, compress.GzipMiddleware)
 
 	router.Post("/api/shorten/batch", c.createURLShortJSONBatch)
 	router.Post("/api/shorten", c.createURLShortJSON)
@@ -54,45 +54,6 @@ func (c *Controller) CreateRouter() http.Handler {
 
 	return router
 }
-
-// // AuthMiddleware - аутентификация пользователя.
-// func (c *Controller) AuthMiddleware(next http.Handler) http.Handler {
-// 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-// 		var userID string
-// 		tokenString := req.Header.Get("Authorization")
-
-// 		if tokenString == "" {
-// 			userID = authn.GenerateUserID()
-// 			newToken, err := authn.BuildJWTString(userID, c.Config.JWTSecret)
-// 			if err != nil {
-// 				http.Error(res, "Ошибка создания токена", http.StatusInternalServerError)
-// 				return
-// 			}
-// 			newCookie := &http.Cookie{
-// 				Name:     "auth_token",
-// 				Value:    newToken,
-// 				Expires:  time.Now().Add(24 * time.Hour),
-// 				Path:     "/",
-// 				Domain:   "localhost",
-// 				HttpOnly: true,
-// 				SameSite: http.SameSiteLaxMode,
-// 			}
-// 			http.SetCookie(res, newCookie)
-// 			res.WriteHeader(http.StatusNoContent)
-// 			res.Header().Set("Authorization", newToken)
-// 		} else {
-// 			userID = authn.GetUserID(tokenString, c.Config.JWTSecret)
-// 			if userID == "-1" {
-// 				http.Error(res, "Невалидный токен", http.StatusUnauthorized)
-// 				return
-// 			}
-// 			res.Header().Set("Authorization", tokenString)
-// 		}
-
-// 		ctx := context.WithValue(req.Context(), constants.UserIDKey, userID)
-// 		next.ServeHTTP(res, req.WithContext(ctx))
-// 	})
-// }
 
 // createURLShortJSON - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
 func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.Request) {
@@ -177,7 +138,6 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 	bodyBytes, _ := io.ReadAll(req.Body)
 	if reflect.DeepEqual(bodyBytes, []byte{}) {
 		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
-		// res.Header().Set("Content-Type", "")
 		return
 	}
 
@@ -249,7 +209,6 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 	urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 
 	res.Header().Set("Content-Type", "text/plain")
-	// fmt.Println("header", res.Header())
 
 	getStatusCode(res, err)
 

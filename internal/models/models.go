@@ -9,21 +9,21 @@ type User struct {
 }
 
 type URL struct {
-	// UserID   int
 	UserID   string
 	Short    string
 	Original string
+	URLID    string
 }
 
 func (url URL) MarshalJSON() ([]byte, error) {
 	urlAlias := struct {
 		Short    string `json:"short_url"`
 		Original string `json:"-"`
-		ID       string `json:"correlation_id"`
+		URLID    string `json:"correlation_id"`
 	}{
 		Short:    url.Short,
 		Original: url.Original,
-		ID:       url.UserID,
+		URLID:    url.URLID,
 	}
 
 	return json.Marshal(urlAlias)
@@ -33,7 +33,7 @@ func (url *URL) UnmarshalJSON(data []byte) error {
 	type URLAlias struct {
 		Short    string `json:"-"`
 		Original string `json:"original_url"`
-		ID       string `json:"correlation_id"`
+		URLID    string `json:"correlation_id"`
 	}
 
 	var urlAlias URLAlias
@@ -42,7 +42,7 @@ func (url *URL) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	url.Original = urlAlias.Original
-	url.UserID = urlAlias.ID
+	url.URLID = urlAlias.URLID
 	return nil
 }
 
@@ -50,6 +50,7 @@ type URLCopyOne struct {
 	UserID   string
 	Short    string
 	Original string
+	URLID    string
 }
 
 func (url URLCopyOne) MarshalJSON() ([]byte, error) {
@@ -80,17 +81,19 @@ type URLCopyTwo struct {
 	UserID   string `json:"uuid"`
 	Short    string `json:"url_short"`
 	Original string `json:"url_original"`
+	URLID    string `json:"-"`
 }
 
 type URLCopyThree struct {
 	UserID   string `json:"-"`
 	Short    string `json:"url_short"`
 	Original string `json:"url_original"`
+	URLID    string `json:"-"` 
 }
-
 
 type URLCopyFour struct {
 	UserID   string `json:"-"`
 	Short    string `json:"short_url"`
 	Original string `json:"original_url"`
+	URLID    string `json:"-"`
 }
