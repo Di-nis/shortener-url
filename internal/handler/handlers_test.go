@@ -120,7 +120,7 @@ func testCreateURLShortJSONBatch(t *testing.T, server *httptest.Server) {
 			contentType: "text/plain",
 			want: want{
 				statusCode:  http.StatusMethodNotAllowed,
-				body:        ``,
+				body:        "",
 				contentType: "",
 			},
 		},
