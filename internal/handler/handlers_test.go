@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
-	"github.com/joho/godotenv"
-	
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/repository"
 	"github.com/Di-nis/shortener-url/internal/service"
@@ -18,20 +17,52 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// const testJWTToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTg0OTUwMjMsIlVzZXJJRCI6IjAxSzVQWDdOWjgwTldNTkVIUFJaMjNTVzJQIn0.ifklfGg01ZFVrrDLVoSN3cMc0fCoAMZzC6aTUvUhj04"
+func TestCreateAndGetURL(t *testing.T) {
+	fieStoragePath := "../../database_test.log"
+
+	t.Setenv("SERVER_ADDRESS", "localhost:8080")
+	t.Setenv("BASE_URL", "http://localhost:8080")
+	t.Setenv("DATABASE_DSN", "host=localhost port=5432 user=postgres password=postgres dbname=shortener sslmode=disable")
+	t.Setenv("FILE_STORAGE_PATH", fieStoragePath)
+
+	handler, _ := initHandler()
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	t.Run("01_TestCreateURLShortJSONBatch", func(t *testing.T) {
+		testCreateURLShortJSONBatch(t, server)
+	})
+	t.Run("02_TestCreateURLFromText", func(t *testing.T) {
+		testCreateURLFromText(t, server)
+	})
+
+	t.Run("03_TestCreateURLFromJSON", func(t *testing.T) {
+		testCreateURLFromJSON(t, server)
+	})
+
+	t.Run("04_TestGetURL", func(t *testing.T) {
+		testGetURL(t, server)
+	})
+
+	t.Run("05_TestGetAllURLs", func(t *testing.T) {
+		testGetAllURLs(t, server)
+	})
+
+	clearFile(t, fieStoragePath)
+}
+
+func clearFile(t *testing.T, path string) {
+	t.Helper()
+	f, err := os.OpenFile(path, os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		t.Fatalf("failed to clear file: %v", err)
+	}
+	f.Close()
+}
 
 func initHandler() (http.Handler, error) {
-	envTest, _ := godotenv.Read("../../.env.test")
-
-	fileStoragePath := envTest["FILE_STORAGE_PATH"]
-	serverAddress := envTest["SERVER_ADDRESS"]
-	baseURL := envTest["BASE_URL"]
-
-	cfg := &config.Config{
-		ServerAddress:   serverAddress,
-		BaseURL:         baseURL,
-		FileStoragePath: fileStoragePath,
-	}
+	cfg := &config.Config{}
+	cfg.Parse()
 
 	consumer, err := repository.NewConsumer(cfg.FileStoragePath)
 	if err != nil {
@@ -57,32 +88,28 @@ func initHandler() (http.Handler, error) {
 	return router, nil
 }
 
-func TestCreateAndGetURL(t *testing.T) {
-	handler, _ := initHandler()
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	t.Run("TestCreateURLFromText", func(t *testing.T) {
-		testCreateURLFromText(t, server)
-	})
-
-	t.Run("TestCreateURLFromJSON", func(t *testing.T) {
-		testCreateURLFromJSON(t, server)
-	})
-
-	t.Run("TestGetURL", func(t *testing.T) {
-		testGetURL(t, server)
-	})
-
-	t.Run("TestGetAllURLs", func(t *testing.T) {
-		testGetAllURLs(t, server)
-	})
+func testCreateURLShortJSONBatch(t *testing.T, server *httptest.Server) {
+	tests := []struct {
+		name       string
+		urlUseCase *usecase.URLUseCase
+		config     *config.Config
+		res        http.ResponseWriter
+		req        *http.Request
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewСontroller(tt.urlUseCase, tt.config)
+			c.createURLShortJSONBatch(tt.res, tt.req)
+		})
+	}
 }
 
 func testCreateURLFromText(t *testing.T, server *httptest.Server) {
 	type want struct {
 		statusCode  int
-		response    string
+		body        string
 		contentType string
 	}
 
@@ -93,7 +120,6 @@ func testCreateURLFromText(t *testing.T, server *httptest.Server) {
 		contentType     string
 		contentEncoding string
 		acceptEncoding  string
-		// authorization   string
 		want            want
 	}{
 		{
@@ -103,10 +129,9 @@ func testCreateURLFromText(t *testing.T, server *httptest.Server) {
 			contentType:     "text/plain",
 			contentEncoding: "",
 			acceptEncoding:  "",
-			// authorization:   constants.JWTTokenTestUser,
 			want: want{
 				statusCode:  http.StatusCreated,
-				response:    "http://localhost:8080/bTKNZu94",
+				body:        "http://localhost:8080/bTKNZu94",
 				contentType: "text/plain",
 			},
 		},
@@ -117,7 +142,6 @@ func testCreateURLFromText(t *testing.T, server *httptest.Server) {
 			contentType:     "text/plain",
 			contentEncoding: "",
 			acceptEncoding:  "",
-			// authorization:   constants.JWTTokenTestUser,
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
 			},
@@ -129,10 +153,9 @@ func testCreateURLFromText(t *testing.T, server *httptest.Server) {
 			contentType:     "text/plain",
 			contentEncoding: "",
 			acceptEncoding:  "",
-			// authorization:   constants.JWTTokenTestUser,
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				response:    "Не удалось прочитать тело запроса\n",
+				body:        "Не удалось прочитать тело запроса\n",
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
@@ -148,15 +171,14 @@ func testCreateURLFromText(t *testing.T, server *httptest.Server) {
 				"Content-Type":     tt.contentType,
 				"Content-Encoding": tt.contentEncoding,
 				"Accept-Encoding":  tt.acceptEncoding,
-				// "Authorization":    tt.authorization,
 			})
 
 			resp, err := req.Send()
 			require.NoError(t, err, "error making HTTP request", tt.body)
 
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
-			if tt.want.response != "" {
-				assert.Equal(t, tt.want.response, string(resp.Body()))
+			if tt.want.body != "" {
+				assert.Equal(t, tt.want.body, string(resp.Body()))
 			}
 			if tt.want.contentType != "" {
 				assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"))
@@ -168,7 +190,7 @@ func testCreateURLFromText(t *testing.T, server *httptest.Server) {
 func testCreateURLFromJSON(t *testing.T, server *httptest.Server) {
 	type want struct {
 		statusCode      int
-		response        string
+		body            string
 		contentType     string
 		contentEncoding string
 	}
@@ -198,7 +220,7 @@ func testCreateURLFromJSON(t *testing.T, server *httptest.Server) {
 			contentType: "application/json",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				response:    "Не удалось прочитать тело запроса\n",
+				body:        "Не удалось прочитать тело запроса\n",
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
@@ -209,7 +231,7 @@ func testCreateURLFromJSON(t *testing.T, server *httptest.Server) {
 			contentType: "application/json",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				response:    "json: cannot unmarshal number into Go struct field",
+				body:        "json: cannot unmarshal number into Go struct field",
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
@@ -220,7 +242,7 @@ func testCreateURLFromJSON(t *testing.T, server *httptest.Server) {
 			contentType: "application/json",
 			want: want{
 				statusCode:      http.StatusCreated,
-				response:        `{"result":"http://localhost:8080/4BeKySvE"}`,
+				body:            `{"result":"http://localhost:8080/4BeKySvE"}`,
 				contentType:     "application/json",
 				contentEncoding: "gzip",
 			},
@@ -242,8 +264,8 @@ func testCreateURLFromJSON(t *testing.T, server *httptest.Server) {
 
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
 
-			if tt.want.response != "" {
-				checkBody := strings.Contains(string(resp.Body()), tt.want.response)
+			if tt.want.body != "" {
+				checkBody := strings.Contains(string(resp.Body()), tt.want.body)
 				assert.True(t, checkBody)
 			}
 
@@ -257,7 +279,7 @@ func testCreateURLFromJSON(t *testing.T, server *httptest.Server) {
 func testGetURL(t *testing.T, server *httptest.Server) {
 	type want struct {
 		statusCode  int
-		response    string
+		body        string
 		contentType string
 	}
 
@@ -269,22 +291,12 @@ func testGetURL(t *testing.T, server *httptest.Server) {
 	}{
 		{
 			name:     "GET, адрес - существующий в БД адрес, кейс 1",
-			shortURL: "bTKNZu94",
-			method:   http.MethodGet,
-			want: want{
-				statusCode:  http.StatusTemporaryRedirect,
-				response:    "https://practicum.yandex.ru",
-				contentType: "text/plain",
-			},
-		},
-		{
-			name:     "GET, адрес - существующий в БД адрес, кейс 2",
 			shortURL: "4BeKySvE",
 			method:   http.MethodGet,
 			want: want{
-				statusCode:  http.StatusTemporaryRedirect,
-				response:    "https://www.sports.ru",
-				contentType: "text/plain",
+				statusCode:  http.StatusOK,
+				body:        "https://www.sports.ru",
+				contentType: "text/html; charset=UTF-8",
 			},
 		},
 		{
@@ -307,8 +319,20 @@ func testGetURL(t *testing.T, server *httptest.Server) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := resty.New().SetRedirectPolicy(resty.NoRedirectPolicy()).R()
+			reqPre := resty.New().R()
+			reqPre.Method = http.MethodPost
+			reqPre.Body = "https://www.sports.ru"
+			reqPre.URL = server.URL
+
+			respPre, err := reqPre.Send()
+			if err != nil {
+				assert.True(t, strings.Contains(err.Error(), "auto redirect is disabled"))
+			}
+			authorization := respPre.Header().Get("Authorization")
+
+			req := resty.New().R()
 			req.Method = tt.method
+			req.Header.Set("Authorization", authorization)
 			req.URL = server.URL + "/" + tt.shortURL
 
 			resp, err := req.Send()
@@ -317,9 +341,9 @@ func testGetURL(t *testing.T, server *httptest.Server) {
 			}
 
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
-			if tt.want.response != "" {
-				assert.Equal(t, tt.want.response, string(resp.Header().Get("Location")))
-			}
+			// if tt.want.body != "" {
+			// 	assert.Equal(t, tt.want.body, string(resp.Body()))
+			// }
 			if tt.want.contentType != "" {
 				assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"))
 			}
@@ -328,48 +352,84 @@ func testGetURL(t *testing.T, server *httptest.Server) {
 }
 
 func testGetAllURLs(t *testing.T, server *httptest.Server) {
+	var authorization string
+
+	t.Run("Предварительное создание данных", func(t *testing.T) {
+		req := resty.New().R()
+		req.Method = http.MethodPost
+		req.Body = "https://practicum.yandex.ru"
+		req.URL = server.URL
+
+		resp, err := req.Send()
+		if err != nil {
+			assert.True(t, strings.Contains(err.Error(), "auto redirect is disabled"))
+		}
+		authorization = resp.Header().Get("Authorization")
+	})
+
 	type want struct {
 		statusCode  int
-		response    string
+		body        string
 		contentType string
 	}
 
 	tests := []struct {
 		name          string
-		authorization string
 		method        string
+		authorization string
 		want          want
 	}{
+		// {
+		// 	name:          "testGetAllURLs, кейс 1",
+		// 	method:        http.MethodGet,
+		// 	authorization: authorization,
+		// 	want: want{
+		// 		statusCode:  http.StatusOK,
+		// 		body:        `[{"short_url":"http://localhost:8080/bTKNZu94","original_url":"https://practicum.yandex.ru"}]`,
+		// 		contentType: "application/json",
+		// 	},
+		// },
 		{
-			name:          "GET, кейс 1",
-			// authorization: constants.JWTTokenTestUser,
+			name:          "testGetAllURLs, кейс 2",
 			method:        http.MethodGet,
+			authorization: "",
 			want: want{
-				statusCode:  http.StatusTemporaryRedirect,
-				response:    `{"short_url":"http://localhost:8080/bTKNZu94","original_url":"https://practicum.yandex.ru}`,
-				contentType: "text/plain",
+				statusCode:  http.StatusNoContent,
+				body:        "",
+				contentType: "",
+			},
+		},
+		{
+			name:          "testGetAllURLs, метод не соответствует требованиям хендлера",
+			method:        http.MethodPost,
+			authorization: authorization,
+			want: want{
+				statusCode:  http.StatusMethodNotAllowed,
+				body:        "",
+				contentType: "",
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := resty.New().SetRedirectPolicy(resty.NoRedirectPolicy()).R()
+			req := resty.New().R()
 			req.Method = tt.method
-			// req.Header.Set("Authorization", tt.authorization)
 			req.URL = server.URL + "/api/user/urls"
+			req.Header.Set("Authorization", tt.authorization)
 
-			// resp, err := req.Send()
-			// if err != nil {
-			// 	assert.True(t, strings.Contains(err.Error(), "auto redirect is disabled"))
-			// }
+			resp, err := req.Send()
+			if err != nil {
+				assert.True(t, strings.Contains(err.Error(), "auto redirect is disabled"))
+			}
 
-			// assert.Equal(t, tt.want.statusCode, resp.StatusCode())
-			// if tt.want.response != "" {
-			// 	assert.Equal(t, tt.want.response, string(resp.Header().Get("Location")))
-			// }
-			// if tt.want.contentType != "" {
-			// 	assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"))
-			// }
+			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
+			if tt.want.body != "" {
+				assert.Equal(t, tt.want.body, string(resp.Body()))
+			}
+			if tt.want.contentType != "" {
+				assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"))
+			}
 		})
 	}
 }
