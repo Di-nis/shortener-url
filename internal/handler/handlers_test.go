@@ -89,19 +89,62 @@ func initHandler() (http.Handler, error) {
 }
 
 func testCreateURLShortJSONBatch(t *testing.T, server *httptest.Server) {
+	type want struct {
+		statusCode  int
+		body        string
+		contentType string
+	}
+
 	tests := []struct {
-		name       string
-		urlUseCase *usecase.URLUseCase
-		config     *config.Config
-		res        http.ResponseWriter
-		req        *http.Request
+		name        string
+		body        string
+		method      string
+		contentType string
+		want        want
 	}{
-		// TODO: Add test cases.
+		{
+			name:        "POST, тест 1",
+			body:        `[{"correlation_id": "1","original_url":"sberbank.ru"},{"correlation_id":"2","original_url":"dzen.ru"}]`,
+			method:      http.MethodPost,
+			contentType: "text/plain",
+			want: want{
+				statusCode:  http.StatusCreated,
+				body:        `[{"short_url":"http://localhost:8080/ghDg2efU","correlation_id":"1"},{"short_url":"http://localhost:8080/j0z83CVB","correlation_id":"2"}]`,
+				contentType: "application/json",
+			},
+		},
+		{
+			name:        "GET, тест 2",
+			body:        `[{"correlation_id": "1","original_url":""sport-express.ru""}]`,
+			method:      http.MethodGet,
+			contentType: "text/plain",
+			want: want{
+				statusCode:  http.StatusMethodNotAllowed,
+				body:        ``,
+				contentType: "",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewСontroller(tt.urlUseCase, tt.config)
-			c.createURLShortJSONBatch(tt.res, tt.req)
+			req := resty.New().R()
+			req.Method = tt.method
+			req.URL = server.URL + "/api/shorten/batch"
+			req.Body = tt.body
+			req.SetHeaders(map[string]string{
+				"Content-Type": tt.contentType,
+			})
+
+			resp, err := req.Send()
+			require.NoError(t, err, "error making HTTP request", tt.body)
+
+			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
+			if tt.want.body != "" {
+				assert.Equal(t, tt.want.body, string(resp.Body()))
+			}
+			if tt.want.contentType != "" {
+				assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"))
+			}
 		})
 	}
 }
@@ -277,6 +320,21 @@ func testCreateURLFromJSON(t *testing.T, server *httptest.Server) {
 }
 
 func testGetURL(t *testing.T, server *httptest.Server) {
+	authorization := ""
+
+	t.Run("Предварительное создание данных", func(t *testing.T) {
+		reqPre := resty.New().R()
+		reqPre.Method = http.MethodPost
+		reqPre.Body = "https://www.sports.ru"
+		reqPre.URL = server.URL
+
+		respPre, err := reqPre.Send()
+		if err != nil {
+			assert.True(t, strings.Contains(err.Error(), "auto redirect is disabled"))
+		}
+		authorization = respPre.Header().Get("Authorization")
+	})
+
 	type want struct {
 		statusCode  int
 		body        string
@@ -284,15 +342,17 @@ func testGetURL(t *testing.T, server *httptest.Server) {
 	}
 
 	tests := []struct {
-		name     string
-		shortURL string
-		method   string
-		want     want
+		name          string
+		shortURL      string
+		method        string
+		authorization string
+		want          want
 	}{
 		{
-			name:     "GET, адрес - существующий в БД адрес, кейс 1",
-			shortURL: "4BeKySvE",
-			method:   http.MethodGet,
+			name:          "GET, адрес - существующий в БД адрес, кейс 1",
+			shortURL:      "4BeKySvE",
+			method:        http.MethodGet,
+			authorization: authorization,
 			want: want{
 				statusCode:  http.StatusOK,
 				body:        "https://www.sports.ru",
@@ -300,17 +360,19 @@ func testGetURL(t *testing.T, server *httptest.Server) {
 			},
 		},
 		{
-			name:     "POST, адрес - существующий в БД адрес",
-			shortURL: "bTKNZu94",
-			method:   http.MethodPost,
+			name:          "POST, адрес - существующий в БД адрес",
+			shortURL:      "bTKNZu94",
+			method:        http.MethodPost,
+			authorization: authorization,
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
 			},
 		},
 		{
-			name:     "GET, адрес в БД не найден",
-			shortURL: "nvjkrhsf",
-			method:   http.MethodGet,
+			name:          "GET, адрес в БД не найден",
+			shortURL:      "nvjkrhsf",
+			method:        http.MethodGet,
+			authorization: authorization,
 			want: want{
 				statusCode: http.StatusNotFound,
 			},
@@ -319,20 +381,9 @@ func testGetURL(t *testing.T, server *httptest.Server) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			reqPre := resty.New().R()
-			reqPre.Method = http.MethodPost
-			reqPre.Body = "https://www.sports.ru"
-			reqPre.URL = server.URL
-
-			respPre, err := reqPre.Send()
-			if err != nil {
-				assert.True(t, strings.Contains(err.Error(), "auto redirect is disabled"))
-			}
-			authorization := respPre.Header().Get("Authorization")
-
 			req := resty.New().R()
 			req.Method = tt.method
-			req.Header.Set("Authorization", authorization)
+			req.Header.Set("Authorization", tt.authorization)
 			req.URL = server.URL + "/" + tt.shortURL
 
 			resp, err := req.Send()
@@ -341,9 +392,9 @@ func testGetURL(t *testing.T, server *httptest.Server) {
 			}
 
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
-			// if tt.want.body != "" {
-			// 	assert.Equal(t, tt.want.body, string(resp.Body()))
-			// }
+			if tt.want.body != "" {
+				assert.Contains(t, string(resp.Body()), tt.want.body)
+			}
 			if tt.want.contentType != "" {
 				assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"))
 			}
@@ -357,7 +408,7 @@ func testGetAllURLs(t *testing.T, server *httptest.Server) {
 	t.Run("Предварительное создание данных", func(t *testing.T) {
 		req := resty.New().R()
 		req.Method = http.MethodPost
-		req.Body = "https://practicum.yandex.ru"
+		req.Body = "google.ru"
 		req.URL = server.URL
 
 		resp, err := req.Send()
@@ -379,16 +430,16 @@ func testGetAllURLs(t *testing.T, server *httptest.Server) {
 		authorization string
 		want          want
 	}{
-		// {
-		// 	name:          "testGetAllURLs, кейс 1",
-		// 	method:        http.MethodGet,
-		// 	authorization: authorization,
-		// 	want: want{
-		// 		statusCode:  http.StatusOK,
-		// 		body:        `[{"short_url":"http://localhost:8080/bTKNZu94","original_url":"https://practicum.yandex.ru"}]`,
-		// 		contentType: "application/json",
-		// 	},
-		// },
+		{
+			name:          "testGetAllURLs, кейс 1",
+			method:        http.MethodGet,
+			authorization: authorization,
+			want: want{
+				statusCode:  http.StatusOK,
+				body:        `[{"short_url":"http://localhost:8080/5S4OlfVc","original_url":"google.ru"}]`,
+				contentType: "application/json",
+			},
+		},
 		{
 			name:          "testGetAllURLs, кейс 2",
 			method:        http.MethodGet,
