@@ -60,6 +60,8 @@ func (repo *RepoPostgres) Migrations() error {
 	// тут надо подумать над обработкой ошибок
 	if errors.Is(err3, migrate.ErrNoChange) {
 		return nil
+	} else if err3 != nil {
+		return err3
 	}
 	return nil
 }
@@ -70,7 +72,7 @@ func (repo *RepoPostgres) CreateOrdinary(ctx context.Context, url models.URL) er
 		return err
 	}
 
-	_, err = stmt.ExecContext(ctx, url.Original, url.Short, url.UserID)
+	_, err = stmt.ExecContext(ctx, url.Original, url.Short, url.UUID)
 	if err != nil {
 		return err
 	}
@@ -92,7 +94,7 @@ func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL) er
 	}
 
 	for _, url := range urls {
-		_, err = stmt.ExecContext(ctx, url.Original, url.Short, url.UserID)
+		_, err = stmt.ExecContext(ctx, url.Original, url.Short, url.UUID)
 	}
 	if err != nil {
 		return err
@@ -118,7 +120,7 @@ func (repo *RepoPostgres) GetShortURL(ctx context.Context, urlOriginal string) (
 }
 
 func (repo *RepoPostgres) GetOriginalURL(ctx context.Context, urlShort string) (string, error) {
-	stmt, err := repo.db.PrepareContext(ctx, "SELECT original FROM urls WHERE short = $1")
+	stmt, err := repo.db.PrepareContext(ctx, "SELECT original, is_deleted FROM urls WHERE short = $1")
 	if err != nil {
 		return "", err
 	}
@@ -126,12 +128,17 @@ func (repo *RepoPostgres) GetOriginalURL(ctx context.Context, urlShort string) (
 
 	row := stmt.QueryRowContext(ctx, urlShort)
 
-	var urlOriginal string
-	err = row.Scan(&urlOriginal)
+	var url models.URL
+	err = row.Scan(&url.Original, &url.DeletedFlag)
+
+	if url.DeletedFlag {
+		return "", constants.ErrorURLAlreadyDeleted
+	}
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		return "", constants.ErrorURLNotExist
 	}
-	return urlOriginal, nil
+
+	return url.Original, nil
 }
 
 // GetAllURLs - получение всех когда-либо сокращенных пользователем URL.
@@ -142,7 +149,6 @@ func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID string) ([]mode
 	}
 	defer stmt.Close()
 
-	// rows, err := stmt.QueryContext(ctx, userID)
 	rows, err := stmt.QueryContext(ctx, userID)
 	// требуется дополнительно уточнить, как писать
 	if rows.Err() != nil {
@@ -168,4 +174,27 @@ func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID string) ([]mode
 		return nil, err
 	}
 	return urls, nil
+}
+
+func (repo *RepoPostgres) DeleteURL(ctx context.Context, urls []models.URL) error {
+	tx, err := repo.db.Begin()
+
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+
+	stmt, err := repo.db.PrepareContext(ctx, "UPDATE urls SET is_deleted = true, original = '' WHERE short = $1 AND user_id = $2")
+	if err != nil {
+		return err
+	}
+
+	for _, url := range urls {
+		_, err = stmt.ExecContext(ctx, url.Short, url.URLID)
+	}
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }

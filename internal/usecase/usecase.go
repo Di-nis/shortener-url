@@ -19,6 +19,7 @@ type URLRepository interface {
 	GetOriginalURL(context.Context, string) (string, error)
 	GetShortURL(context.Context, string) (string, error)
 	GetAllURLs(context.Context, string) ([]models.URL, error)
+	DeleteURL(context.Context, []models.URL) error
 }
 
 // convertToSingleType - приведение к единому типу данных.
@@ -117,4 +118,13 @@ func (urlUserCase *URLUseCase) GetAllURLs(ctx context.Context, userID string) ([
 		return nil, err
 	}
 	return urls, nil
+}
+
+func (urlUserCase *URLUseCase) DeleteURLs(ctx context.Context, urls []models.URL) error {
+	// for _, id := range urls {
+	err := urlUserCase.Repo.DeleteURL(ctx, urls)
+	if err != nil {
+		return err
+	}
+	return nil
 }

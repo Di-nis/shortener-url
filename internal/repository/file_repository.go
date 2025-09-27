@@ -88,7 +88,9 @@ func (repo *RepoFile) CreateOrdinary(ctx context.Context, url models.URL) error 
 // GetOriginalURL - получение оригинального URL из базы данных.
 func (repo *RepoFile) GetOriginalURL(ctx context.Context, shortURL string) (string, error) {
 	for _, url := range repo.OriginalAndShortURL {
-		if url.Short == shortURL {
+		if url.Short == shortURL && url.DeletedFlag {
+			return "", constants.ErrorURLAlreadyDeleted
+		} else if url.Short == shortURL {
 			return url.Original, nil
 		}
 	}
@@ -110,9 +112,21 @@ func (repo *RepoFile) GetAllURLs(ctx context.Context, userID string) ([]models.U
 	var urls []models.URL
 
 	for _, url := range repo.OriginalAndShortURL {
-		if url.UserID == userID {
+		if url.UUID == userID {
 			urls = append(urls, url)
 		}
 	}
 	return urls, nil
+}
+
+func (repo *RepoFile) DeleteURL(ctx context.Context, urls []models.URL) error {
+	for _, url := range urls {
+		for i, urlDB := range repo.OriginalAndShortURL {
+			if urlDB.Short == url.Short && urlDB.UUID == url.UUID && !urlDB.DeletedFlag {
+				repo.OriginalAndShortURL[i].Original = ""
+				repo.OriginalAndShortURL[i].DeletedFlag = true
+			}
+		}
+	}
+	return nil
 }

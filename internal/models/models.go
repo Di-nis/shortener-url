@@ -9,10 +9,11 @@ type User struct {
 }
 
 type URL struct {
-	UserID   string
-	Short    string
-	Original string
-	URLID    string
+	UUID        string `db:"user_id"`
+	Short       string `db:"short"`
+	Original    string `db:"original"`
+	URLID       string
+	DeletedFlag bool `db:"is_deleted"`
 }
 
 func (url URL) MarshalJSON() ([]byte, error) {
@@ -47,10 +48,11 @@ func (url *URL) UnmarshalJSON(data []byte) error {
 }
 
 type URLCopyOne struct {
-	UserID   string
-	Short    string
-	Original string
-	URLID    string
+	UUID        string
+	Short       string
+	Original    string
+	URLID       string
+	DeletedFlag bool
 }
 
 func (url URLCopyOne) MarshalJSON() ([]byte, error) {
@@ -78,22 +80,25 @@ func (url *URLCopyOne) UnmarshalJSON(data []byte) error {
 }
 
 type URLCopyTwo struct {
-	UserID   string `json:"uuid"`
-	Short    string `json:"url_short"`
-	Original string `json:"url_original"`
-	URLID    string `json:"-"`
+	UUID        string `json:"uuid"`
+	Short       string `json:"url_short"`
+	Original    string `json:"url_original"`
+	URLID       string `json:"-"`
+	DeletedFlag bool   `json:"-"`
 }
 
 type URLCopyThree struct {
-	UserID   string `json:"-"`
-	Short    string `json:"url_short"`
-	Original string `json:"url_original"`
-	URLID    string `json:"-"` 
+	UUID        string `json:"-"`
+	Short       string `json:"url_short"`
+	Original    string `json:"url_original"`
+	URLID       string `json:"-"`
+	DeletedFlag bool   `json:"-"`
 }
 
 type URLCopyFour struct {
-	UserID   string `json:"-"`
-	Short    string `json:"short_url"`
-	Original string `json:"original_url"`
-	URLID    string `json:"-"`
+	UUID        string `json:"-"`
+	Short       string `json:"short_url"`
+	Original    string `json:"original_url"`
+	URLID       string `json:"-"`
+	DeletedFlag bool   `json:"-"`
 }

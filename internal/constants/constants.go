@@ -8,9 +8,9 @@ import (
 type contextKey string
 
 const (
-	HashLength                 = 8
-	TokenExp                   = time.Hour * 3
-	UserIDKey       contextKey = "userID"
+	HashLength            = 8
+	TokenExp              = time.Hour * 3
+	UserIDKey  contextKey = "userID"
 )
 
 var (
@@ -20,4 +20,6 @@ var (
 	ErrorURLNotExist = errors.New("URL doesn't exist")
 	// Метод не разрешен
 	ErrorMethodNotAllowed = errors.New("method not allowed")
+	// URL уже удален
+	ErrorURLAlreadyDeleted = errors.New("URL already deleted")
 )

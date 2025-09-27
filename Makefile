@@ -31,4 +31,10 @@ autotests14:
 		-binary-path=cmd/shortener/shortener \
 		-database-dsn=postgresql://postgres:postgres@localhost:5432/shortener?sslmode=disable
 
-all: statictests autotests14
+autotests15:
+	shortenertest -test.v -test.run=^TestIteration15$ \
+		-binary-path=cmd/shortener/shortener \
+		-database-dsn=postgresql://postgres:postgres@localhost:5432/shortener?sslmode=disable \
+		-source-path=.
+
+all: statictests autotests15

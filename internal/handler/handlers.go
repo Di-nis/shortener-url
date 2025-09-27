@@ -9,8 +9,8 @@ import (
 	"reflect"
 
 	"github.com/Di-nis/shortener-url/internal/authn"
-	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/compress"
+	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/logger"
 	"github.com/Di-nis/shortener-url/internal/models"
@@ -49,6 +49,7 @@ func (c *Controller) CreateRouter() http.Handler {
 	router.Post("/api/shorten", c.createURLShortJSON)
 	router.Post("/", c.createURLShortText)
 	router.Get("/api/user/urls", c.getAllURLs)
+	router.Delete("/api/user/urls", c.deleteURLs)
 	router.Get("/{short_url}", c.getlURLOriginal)
 	router.Get("/ping", c.pingDB)
 
@@ -91,7 +92,7 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 	}
 
 	for i := range urls {
-		urls[i].UserID = userID
+		urls[i].UUID = userID
 	}
 
 	createdURLs, err := c.URLUseCase.CreateURLBatch(ctx, urls, c.Config.BaseURL)
@@ -156,7 +157,7 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	urlInOut.UserID = userID
+	urlInOut.UUID = userID
 
 	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut, c.Config.BaseURL)
 
@@ -202,7 +203,7 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 
 	urlIn := models.URL{
 		Original: string(bodyBytes),
-		UserID:   userID,
+		UUID:     userID,
 	}
 
 	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn, c.Config.BaseURL)
@@ -280,9 +281,16 @@ func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request)
 	defer req.Body.Close()
 
 	urlOriginal, err := c.URLUseCase.GetOriginalURL(ctx, URLShort)
-	if err != nil && err == constants.ErrorURLNotExist {
-		res.WriteHeader(http.StatusNotFound)
-		return
+	if err != nil {
+		if err == constants.ErrorURLNotExist {
+			res.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if err == constants.ErrorURLAlreadyDeleted {
+			res.WriteHeader(http.StatusGone)
+			return
+		}
+
 	}
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
@@ -307,4 +315,41 @@ func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
 	} else {
 		res.WriteHeader(http.StatusOK)
 	}
+}
+
+// deleteURLs - удаление сокращенных URL.
+func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
+	defer cancel()
+
+	if req.Method != http.MethodDelete {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Получение userID через middleware Auth
+	userID := req.Context().Value(constants.UserIDKey).(string)
+
+	var shorts []string
+	urls := []models.URL{}
+
+	if err := json.NewDecoder(req.Body).Decode(&shorts); err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	defer req.Body.Close()
+
+	for _, short := range shorts {
+		urls = append(urls, models.URL{
+			Short: short,
+			UUID:  userID,
+		})
+	}
+
+	if err := c.URLUseCase.DeleteURLs(ctx, urls); err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+	}
+	res.WriteHeader(http.StatusAccepted)
+
 }
