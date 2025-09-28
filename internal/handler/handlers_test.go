@@ -48,6 +48,10 @@ func TestCreateAndGetURL(t *testing.T) {
 		testGetAllURLs(t, server)
 	})
 
+	t.Run("06_TestdeleteURLs", func(t *testing.T) {
+		testdeleteURLs(t, server)
+	})
+
 	clearFile(t, fieStoragePath)
 }
 
@@ -482,5 +486,69 @@ func testGetAllURLs(t *testing.T, server *httptest.Server) {
 				assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"))
 			}
 		})
+	}
+}
+
+func testdeleteURLs(t *testing.T, server *httptest.Server) {
+	var authorization string
+
+	t.Run("Предварительное создание данных", func(t *testing.T) {
+		req := resty.New().R()
+		req.Method = http.MethodPost
+		req.Body = `{"correlation_id": "1","original_url":"https://maximum.ru/"},{"correlation_id":"2","original_url":"https://radioultra.ru/"}`
+		req.URL = fmt.Sprintf("%s/api/shorten/batch", server.URL)
+
+		resp, err := req.Send()
+		if err != nil {
+			assert.True(t, strings.Contains(err.Error(), "auto redirect is disabled"))
+		}
+		authorization = resp.Header().Get("Authorization")
+	})
+
+	type want struct {
+		statusCode int
+	}
+
+	tests := []struct {
+		name          string
+		method        string
+		body          string
+		authorization string
+		want          want
+	}{
+		{
+			name:          "testdeleteURLs, кейс 1",
+			method:        http.MethodPost,
+			body:          `["imGf5jQO","gVxAI0xB"]`,
+			authorization: authorization,
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+			},
+		},
+		{
+			name:          "testdeleteURLs, кейс 2",
+			method:        http.MethodDelete,
+			body:          `["imGf5jQO","gVxAI0xB"]`,
+			authorization: authorization,
+			want: want{
+				statusCode: http.StatusAccepted,
+			},
+		},
+	}
+	for _, tt := range tests {
+		req := resty.New().R()
+		req.Method = tt.method
+		req.Body = tt.body
+		req.URL = server.URL + "/api/user/urls"
+		req.Header.Set("Authorization", tt.authorization)
+
+		resp, err := req.Send()
+		if err != nil {
+			assert.True(t, strings.Contains(err.Error(), "auto redirect is disabled"))
+		}
+
+		if tt.want.statusCode != 0 {
+			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
+		}
 	}
 }
