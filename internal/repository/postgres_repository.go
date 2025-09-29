@@ -178,8 +178,6 @@ func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID string) ([]mode
 }
 
 func (repo *RepoPostgres) DeleteURL(ctx context.Context, urls []models.URL) error {
-	// fmt.Println("я тут", urls)
-	var m sync.RWMutex
 	tx, err := repo.db.Begin()
 
 	if err != nil {
@@ -193,11 +191,10 @@ func (repo *RepoPostgres) DeleteURL(ctx context.Context, urls []models.URL) erro
 		return err
 	}
 
+	var m sync.RWMutex
 	for _, url := range urls {
-		// fmt.Println("и тут", url)
 		m.Lock()
 		_, err = stmt.ExecContext(ctx, url.Short, url.UUID)
-		// fmt.Println(err)
 		m.Unlock()
 	}
 	if err != nil {
