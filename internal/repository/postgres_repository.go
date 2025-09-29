@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
+	"sync"
 
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/models"
@@ -177,6 +179,8 @@ func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID string) ([]mode
 }
 
 func (repo *RepoPostgres) DeleteURL(ctx context.Context, urls []models.URL) error {
+	fmt.Println("я тут", urls)
+	var m sync.RWMutex
 	tx, err := repo.db.Begin()
 
 	if err != nil {
@@ -185,13 +189,17 @@ func (repo *RepoPostgres) DeleteURL(ctx context.Context, urls []models.URL) erro
 
 	defer tx.Rollback()
 
-	stmt, err := repo.db.PrepareContext(ctx, "UPDATE urls SET is_deleted = true, original = '' WHERE short = $1 AND user_id = $2")
+	stmt, err := repo.db.PrepareContext(ctx, "UPDATE urls SET is_deleted = true WHERE short = $1 AND user_id = $2")
 	if err != nil {
 		return err
 	}
 
 	for _, url := range urls {
-		_, err = stmt.ExecContext(ctx, url.Short, url.URLID)
+		fmt.Println("и тут", url)
+		m.Lock()
+		_, err = stmt.ExecContext(ctx, url.Short, url.UUID)
+		fmt.Println(err)
+		m.Unlock()
 	}
 	if err != nil {
 		return err
