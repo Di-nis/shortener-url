@@ -3,8 +3,6 @@ package usecase
 import (
 	"context"
 	"errors"
-	"fmt"
-	// "sync"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -125,7 +123,7 @@ func (urlUseCase *URLUseCase) GetAllURLs(ctx context.Context, userID string) ([]
 // DeleteURLs - удаление сокращенных URL.
 func (urlUseCase *URLUseCase) DeleteURLs(ctx context.Context, urls []models.URL) error {
 	// вынесить в отдельную функцию
-	batchSize := 1000
+	batchSize := 60
 	tempArray := [][]models.URL{}
 
 	for i := 0; i < len(urls); i += batchSize {
@@ -136,16 +134,17 @@ func (urlUseCase *URLUseCase) DeleteURLs(ctx context.Context, urls []models.URL)
 	}
 	// вынесить в отдельную функцию
 
-    inputCh := urlUseCase.generator(ctx, tempArray)
-	// 
-    channels := urlUseCase.fanOut(ctx, inputCh)
+	inputCh := urlUseCase.generator(ctx, tempArray)
+	//
+	channels := urlUseCase.fanOut(ctx, inputCh)
 
-	// 
-    resultCh := urlUseCase.fanIn(ctx, channels...)
+	//
+	resultCh := urlUseCase.fanIn(ctx, channels...)
 
-    // выводим результаты расчетов из канала
-    for res := range resultCh {
-        fmt.Println(res)
-    }
+	for res := range resultCh {
+		if res != nil {
+			return res
+		}
+	}
 	return nil
 }

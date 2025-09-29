@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"time"
-	"sync"
+	// "sync"
 
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/models"
@@ -26,8 +26,8 @@ func NewRepoPostgres(dataSourceName string) (*RepoPostgres, error) {
 		return nil, err
 	}
 
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(25)
+	db.SetMaxOpenConns(50)
+	db.SetMaxIdleConns(50)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
 	return &RepoPostgres{
@@ -178,8 +178,6 @@ func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID string) ([]mode
 }
 
 func (repo *RepoPostgres) DeleteURL(ctx context.Context, urls []models.URL) error {
-	// fmt.Println("я тут", urls)
-	var m sync.RWMutex
 	tx, err := repo.db.Begin()
 
 	if err != nil {
@@ -193,12 +191,11 @@ func (repo *RepoPostgres) DeleteURL(ctx context.Context, urls []models.URL) erro
 		return err
 	}
 
+	// var m sync.RWMutex
 	for _, url := range urls {
-		// fmt.Println("и тут", url)
-		m.Lock()
+		// m.Lock()
 		_, err = stmt.ExecContext(ctx, url.Short, url.UUID)
-		// fmt.Println(err)
-		m.Unlock()
+		// m.Unlock()
 	}
 	if err != nil {
 		return err

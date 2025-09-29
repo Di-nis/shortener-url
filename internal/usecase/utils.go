@@ -47,7 +47,7 @@ func (urlUseCase *URLUseCase) add(ctx context.Context, inputCh chan []models.URL
 
 // fanOut принимает канал данных, порождает 10 горутин
 func (urlUseCase *URLUseCase) fanOut(ctx context.Context, inputCh chan []models.URL) []chan error {
-	numWorkers := 100
+	numWorkers := 50
 	channels := make([]chan error, numWorkers)
 	wg := sync.WaitGroup{}
 
@@ -73,7 +73,7 @@ func (urlUseCase *URLUseCase) fanIn(ctx context.Context, resultChs ...chan error
 
 	for _, ch := range resultChs {
 		chClosure := ch
-		wg.Add(100)
+		wg.Add(1)
 
 		go func() {
 			defer wg.Done()
