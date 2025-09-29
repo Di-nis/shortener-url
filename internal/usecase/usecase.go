@@ -145,6 +145,16 @@ func (urlUseCase *URLUseCase) GetAllURLs(ctx context.Context, userID string) ([]
 func (urlUseCase *URLUseCase) DeleteURLs(ctx context.Context, urls []models.URL) error {
 	// ctx, cancel := context.WithCancel(ctx)
 	// defer cancel()
+	batchSize := 1000
+	temp := []models.URL{}
+	tempArray := [][]models.URL{}
+
+	for i := 0; i < len(urls); i += batchSize {
+		end := i + batchSize
+		end = min(end, len(urls))
+		temp = urls[i:end]
+		tempArray = append(tempArray, temp)
+	}
 
 
 	doneCh := make(chan struct{})
@@ -152,7 +162,7 @@ func (urlUseCase *URLUseCase) DeleteURLs(ctx context.Context, urls []models.URL)
     defer close(doneCh)
 
     // канал с данными
-    inputCh := urlUseCase.generator(doneCh, urls)
+    inputCh := urlUseCase.generator(doneCh, tempArray)
 
     // получаем слайс каналов из 10 рабочих add
     channels := urlUseCase.fanOut(ctx, doneCh, inputCh)

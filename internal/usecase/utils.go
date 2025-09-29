@@ -11,27 +11,16 @@ import (
 )
 
 // generator функция из предыдущего примера, делает то же, что и делала
-func (urlUseCase *URLUseCase) generator(doneCh chan struct{}, input []models.URL) chan []models.URL {
+func (urlUseCase *URLUseCase) generator(doneCh chan struct{}, input [][]models.URL) chan []models.URL {
     inputCh := make(chan []models.URL)
-	batchSize := 1000
-	temp := []models.URL{}
 
     go func() {
         defer close(inputCh)
-
-		for i := 0; i < len(input); i += batchSize {
-			end := i + batchSize
-			end = min(end, len(input))
-			temp = input[i:end]
-
-			// inputCh <- temp
-		// }
-
-			// for _, data := range input {
+		for _, data := range input {
 			select {
 			case <-doneCh:
 				return
-			case inputCh <- temp:
+			case inputCh <- data:
 				}
 			}
 			// }
