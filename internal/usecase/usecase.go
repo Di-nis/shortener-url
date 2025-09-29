@@ -122,113 +122,30 @@ func (urlUseCase *URLUseCase) GetAllURLs(ctx context.Context, userID string) ([]
 	return urls, nil
 }
 
-// func (urlUseCase *URLUseCase) worker(ctx context.Context, jobs <-chan Job, wg *sync.WaitGroup) {
-// 	defer wg.Done()
-
-// 	for {
-// 		select {
-// 		case <-ctx.Done():
-// 			return
-// 		case job, ok := <-jobs:
-// 			if !ok {
-// 				return
-// 			}
-// 			_ = urlUseCase.Repo.DeleteURL(ctx, job.urls)
-
-// 		}
-// 	}
-// }
-// type Job struct {
-// 	urls []models.URL
-// }
-
+// DeleteURLs - удаление сокращенных URL.
 func (urlUseCase *URLUseCase) DeleteURLs(ctx context.Context, urls []models.URL) error {
-	// ctx, cancel := context.WithCancel(ctx)
-	// defer cancel()
+	// вынесить в отдельную функцию
 	batchSize := 1000
-	temp := []models.URL{}
 	tempArray := [][]models.URL{}
 
 	for i := 0; i < len(urls); i += batchSize {
 		end := i + batchSize
 		end = min(end, len(urls))
-		temp = urls[i:end]
+		temp := urls[i:end]
 		tempArray = append(tempArray, temp)
 	}
+	// вынесить в отдельную функцию
 
+    inputCh := urlUseCase.generator(ctx, tempArray)
+	// 
+    channels := urlUseCase.fanOut(ctx, inputCh)
 
-	doneCh := make(chan struct{})
-    // закрываем его при завершении программы
-    defer close(doneCh)
-
-    // канал с данными
-    inputCh := urlUseCase.generator(doneCh, tempArray)
-
-    // получаем слайс каналов из 10 рабочих add
-    channels := urlUseCase.fanOut(ctx, doneCh, inputCh)
-
-    // а теперь объединяем десять каналов в один
-    resultCh := urlUseCase.fanIn(doneCh, channels...)
-
-    // передаём тот один канал в следующий этап обработки
-    // resultCh := multiply(doneCh, addResultCh)
+	// 
+    resultCh := urlUseCase.fanIn(ctx, channels...)
 
     // выводим результаты расчетов из канала
     for res := range resultCh {
         fmt.Println(res)
     }
 	return nil
-
-
-	// const numJobs = 1000
-	// // создаем буферизованный канал для принятия задач в воркер
-	// // jobs := make(chan int, numJobs)
-	// // создаем буферизованный канал для отправки результатов
-	// results := make(chan error, numJobs)
-	// defer close(results)
-	// // doneCh := make(chan struct{})
-	// // закрываем его при завершении программы
-	// // defer close(doneCh)
-
-	// // канал с данными
-	// inputCh := urlUseCase.generator(urls, numJobs)
-
-	// var wg sync.WaitGroup
-	// wg.Add(1)
-	// go func() {
-	// 	defer wg.Done()
-	// 	for w := 1; w <= 3; w++ {
-	// 		urlUseCase.worker(ctx, inputCh, results)
-	// 	}
-	// }()
-
-	// // defer close(inputCh)
-
-	// var resultWg sync.WaitGroup
-	// errs := make([]error, 0)
-	// resultWg.Add(1)
-	// go func() {
-	// 	defer resultWg.Done()
-	// 	for r := range results {
-	// 		errs = append(errs, r)
-	// 	}
-	// }()
-
-	// go func() {
-	// 	// Ждём воркеров
-	// 	wg.Wait()
-	// 	fmt.Println("Привет 1")
-	// 	// Закрываем канал результатов и ждём агрегатор
-	// 	resultWg.Wait()
-
-	// 	fmt.Println("Привет 2")
-	// }()
-	// close(results)
-	// fmt.Println("Привет 3")
-
-	// // for res := range results {
-    // //     fmt.Println(res)
-    // // }
-
-	// return errs[0]
 }

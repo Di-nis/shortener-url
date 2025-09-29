@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -350,10 +349,8 @@ func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
 	}
 
 	if err := c.URLUseCase.DeleteURLs(ctx, urls); err != nil {
-		fmt.Println("Ошибка удаления URL: ", err)
 		res.WriteHeader(http.StatusInternalServerError)
 	}
-	fmt.Println("нет ошибка удаления URL")
 	res.WriteHeader(http.StatusAccepted)
 
 }
