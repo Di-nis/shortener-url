@@ -324,7 +324,7 @@ func testCreateURLFromJSON(t *testing.T, server *httptest.Server) {
 }
 
 func testGetURL(t *testing.T, server *httptest.Server) {
-	authorization := ""
+	var cookies []*http.Cookie
 
 	t.Run("Предварительное создание данных", func(t *testing.T) {
 		reqPre := resty.New().R()
@@ -336,7 +336,7 @@ func testGetURL(t *testing.T, server *httptest.Server) {
 		if err != nil {
 			assert.True(t, strings.Contains(err.Error(), "auto redirect is disabled"))
 		}
-		authorization = respPre.Header().Get("Authorization")
+		cookies = respPre.Cookies()
 	})
 
 	type want struct {
@@ -346,17 +346,17 @@ func testGetURL(t *testing.T, server *httptest.Server) {
 	}
 
 	tests := []struct {
-		name          string
-		shortURL      string
-		method        string
-		authorization string
-		want          want
+		name     string
+		shortURL string
+		method   string
+		cookies  []*http.Cookie
+		want     want
 	}{
 		{
-			name:          "GET, адрес - существующий в БД адрес, кейс 1",
-			shortURL:      "4BeKySvE",
-			method:        http.MethodGet,
-			authorization: authorization,
+			name:     "GET, адрес - существующий в БД адрес, кейс 1",
+			shortURL: "4BeKySvE",
+			method:   http.MethodGet,
+			cookies:  cookies,
 			want: want{
 				statusCode:  http.StatusOK,
 				body:        "https://www.sports.ru",
@@ -364,19 +364,19 @@ func testGetURL(t *testing.T, server *httptest.Server) {
 			},
 		},
 		{
-			name:          "POST, адрес - существующий в БД адрес",
-			shortURL:      "bTKNZu94",
-			method:        http.MethodPost,
-			authorization: authorization,
+			name:     "POST, адрес - существующий в БД адрес",
+			shortURL: "bTKNZu94",
+			method:   http.MethodPost,
+			cookies:  cookies,
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
 			},
 		},
 		{
-			name:          "GET, адрес в БД не найден",
-			shortURL:      "nvjkrhsf",
-			method:        http.MethodGet,
-			authorization: authorization,
+			name:     "GET, адрес в БД не найден",
+			shortURL: "nvjkrhsf",
+			method:   http.MethodGet,
+			cookies:  cookies,
 			want: want{
 				statusCode: http.StatusNotFound,
 			},
@@ -387,7 +387,7 @@ func testGetURL(t *testing.T, server *httptest.Server) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := resty.New().R()
 			req.Method = tt.method
-			req.Header.Set("Authorization", tt.authorization)
+			req.Cookies = tt.cookies
 			req.URL = server.URL + "/" + tt.shortURL
 
 			resp, err := req.Send()
@@ -407,7 +407,7 @@ func testGetURL(t *testing.T, server *httptest.Server) {
 }
 
 func testGetAllURLs(t *testing.T, server *httptest.Server) {
-	var authorization string
+	var cookies []*http.Cookie
 
 	t.Run("Предварительное создание данных", func(t *testing.T) {
 		req := resty.New().R()
@@ -419,7 +419,7 @@ func testGetAllURLs(t *testing.T, server *httptest.Server) {
 		if err != nil {
 			assert.True(t, strings.Contains(err.Error(), "auto redirect is disabled"))
 		}
-		authorization = resp.Header().Get("Authorization")
+		cookies = resp.Cookies()
 	})
 
 	type want struct {
@@ -429,15 +429,15 @@ func testGetAllURLs(t *testing.T, server *httptest.Server) {
 	}
 
 	tests := []struct {
-		name          string
-		method        string
-		authorization string
-		want          want
+		name    string
+		method  string
+		cookies []*http.Cookie
+		want    want
 	}{
 		{
-			name:          "testGetAllURLs, кейс 1",
-			method:        http.MethodGet,
-			authorization: authorization,
+			name:    "testGetAllURLs, кейс 1",
+			method:  http.MethodGet,
+			cookies: cookies,
 			want: want{
 				statusCode:  http.StatusOK,
 				body:        `[{"short_url":"http://localhost:8080/5S4OlfVc","original_url":"google.ru"}]`,
@@ -445,9 +445,9 @@ func testGetAllURLs(t *testing.T, server *httptest.Server) {
 			},
 		},
 		{
-			name:          "testGetAllURLs, кейс 2",
-			method:        http.MethodGet,
-			authorization: "",
+			name:    "testGetAllURLs, кейс 2",
+			method:  http.MethodGet,
+			cookies: []*http.Cookie{},
 			want: want{
 				statusCode:  http.StatusNoContent,
 				body:        "",
@@ -455,9 +455,9 @@ func testGetAllURLs(t *testing.T, server *httptest.Server) {
 			},
 		},
 		{
-			name:          "testGetAllURLs, метод не соответствует требованиям хендлера",
-			method:        http.MethodPost,
-			authorization: authorization,
+			name:    "testGetAllURLs, метод не соответствует требованиям хендлера",
+			method:  http.MethodPost,
+			cookies: cookies,
 			want: want{
 				statusCode:  http.StatusMethodNotAllowed,
 				body:        "",
@@ -471,7 +471,7 @@ func testGetAllURLs(t *testing.T, server *httptest.Server) {
 			req := resty.New().R()
 			req.Method = tt.method
 			req.URL = server.URL + "/api/user/urls"
-			req.Header.Set("Authorization", tt.authorization)
+			req.Cookies = tt.cookies
 
 			resp, err := req.Send()
 			if err != nil {
@@ -490,7 +490,7 @@ func testGetAllURLs(t *testing.T, server *httptest.Server) {
 }
 
 func testdeleteURLs(t *testing.T, server *httptest.Server) {
-	var authorization string
+	var cookies []*http.Cookie
 
 	t.Run("Предварительное создание данных", func(t *testing.T) {
 		req := resty.New().R()
@@ -502,7 +502,7 @@ func testdeleteURLs(t *testing.T, server *httptest.Server) {
 		if err != nil {
 			assert.True(t, strings.Contains(err.Error(), "auto redirect is disabled"))
 		}
-		authorization = resp.Header().Get("Authorization")
+		cookies = resp.Cookies()
 	})
 
 	type want struct {
@@ -510,26 +510,26 @@ func testdeleteURLs(t *testing.T, server *httptest.Server) {
 	}
 
 	tests := []struct {
-		name          string
-		method        string
-		body          string
-		authorization string
-		want          want
+		name    string
+		method  string
+		body    string
+		cookies []*http.Cookie
+		want    want
 	}{
 		{
-			name:          "testdeleteURLs, кейс 1",
-			method:        http.MethodPost,
-			body:          `["imGf5jQO","gVxAI0xB"]`,
-			authorization: authorization,
+			name:    "testdeleteURLs, кейс 1",
+			method:  http.MethodPost,
+			body:    `["imGf5jQO","gVxAI0xB"]`,
+			cookies: cookies,
 			want: want{
 				statusCode: http.StatusMethodNotAllowed,
 			},
 		},
 		{
-			name:          "testdeleteURLs, кейс 2",
-			method:        http.MethodDelete,
-			body:          `["imGf5jQO","gVxAI0xB"]`,
-			authorization: authorization,
+			name:    "testdeleteURLs, кейс 2",
+			method:  http.MethodDelete,
+			body:    `["imGf5jQO","gVxAI0xB"]`,
+			cookies: cookies,
 			want: want{
 				statusCode: http.StatusAccepted,
 			},
@@ -540,7 +540,7 @@ func testdeleteURLs(t *testing.T, server *httptest.Server) {
 		req.Method = tt.method
 		req.Body = tt.body
 		req.URL = server.URL + "/api/user/urls"
-		req.Header.Set("Authorization", tt.authorization)
+		req.Cookies = tt.cookies
 
 		resp, err := req.Send()
 		if err != nil {
