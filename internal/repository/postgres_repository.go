@@ -7,9 +7,7 @@ import (
 	"strings"
 	"time"
 
-	// "sync"
 	"fmt"
-	// "strings"
 
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/models"
@@ -181,60 +179,19 @@ func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID string) ([]mode
 }
 
 func (repo *RepoPostgres) DeleteURL(ctx context.Context, urls []models.URL) error {
-	// fmt.Println("мы тут")
-	// fmt.Println("мы тут номер 2", urls)
-
-	// соберём данные для создания запроса с групповой вставкой
 	var values []string
 	var args []any
 
 	for i, url := range urls {
-		// fmt.Println(url)
-		// в нашем запросе по 2 параметра на каждое сообщение
 		base := i * 2
-		// PostgreSQL требует шаблоны в формате ($1, $2) для каждой вставки
 		params := fmt.Sprintf("($%d, $%d)", base+1, base+2)
 		values = append(values, params)
 		args = append(args, url.Short, url.UUID)
 	}
-	fmt.Println(args...)
 
 	query := `
 	UPDATE urls AS u SET is_deleted = true FROM (VALUES ` + strings.Join(values, ",") + `) AS v(short, user_id) WHERE u.short = v.short AND u.user_id = v.user_id;`
 
-	// fmt.Println(query)
-	// добавляем новые сообщения в БД
 	_, err := repo.db.ExecContext(ctx, query, args...)
-	fmt.Println(err)
-	// if err != nil {
-	// 	return err
-	// }
-	// fmt.Println(result)
 	return err
-// }
-
-	// tx, err := repo.db.Begin()
-	// // var m sync.Mutex
-
-	// if err != nil {
-	// 	return err
-	// }
-
-	// defer tx.Rollback()
-
-	// stmt, err := repo.db.PrepareContext(ctx, "UPDATE urls SET is_deleted = true WHERE short = $1 AND user_id = $2")
-	// if err != nil {
-	// 	return err
-	// }
-
-	// // var m sync.RWMutex
-	// for _, url := range urls {
-	// 	// m.Lock()
-	// 	_, err = stmt.ExecContext(ctx, url.Short, url.UUID)
-	// 	// m.Unlock()
-	// }
-	// if err != nil {
-	// 	return err
-	// }
-	// return tx.Commit()
 }

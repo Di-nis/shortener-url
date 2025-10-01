@@ -2,7 +2,6 @@ package service
 
 import (
 	"crypto/sha256"
-	// "fmt"
 )
 
 var base62Alphabet = []byte("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")

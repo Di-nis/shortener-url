@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -321,7 +320,6 @@ func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
 // deleteURLs - удаление сокращенных URL.
 func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
 	ctx := context.TODO()
-	// defer cancel()
 
 	if req.Method != http.MethodDelete {
 		res.WriteHeader(http.StatusMethodNotAllowed)
@@ -338,7 +336,7 @@ func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	defer req.Body.Close()
 
 	for _, short := range shorts {
@@ -347,8 +345,6 @@ func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
 			UUID:  userID,
 		})
 	}
-
-	fmt.Println("я тут",  urls)
 
 	if err := c.URLUseCase.DeleteURLs(ctx, urls); err != nil {
 		res.WriteHeader(http.StatusInternalServerError)

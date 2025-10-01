@@ -3,9 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
-	// "sync"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -125,48 +123,19 @@ func (urlUseCase *URLUseCase) GetAllURLs(ctx context.Context, userID string) ([]
 	return urls, nil
 }
 
-// // flush постоянно сохраняет несколько сообщений в хранилище с определённым интервалом
-// func (urlUseCase *URLUseCase) flush(ctx context.Context, inChan chan models.URL, resultCh chan error) {
-// 	// resultCh := make(chan error, 1024)
-// 	ticker := time.NewTicker(3 * time.Second)
+// generator - генерирует сообщения в канал.
+func (urlUseCase *URLUseCase) generator(ctx context.Context, urls []models.URL) {
 
-// 	var urls []models.URL
-// 	var wg sync.WaitGroup
-
-// 	wg.Add(1)
-// 	go func() {
-// 		defer wg.Done()
-
-// 		for {
-// 			select {
-// 			case <-ctx.Done():
-// 				return
-// 			case url := <-inChan:
-// 				urls = append(urls, url)
-// 			case <-ticker.C:
-
-// 				if len(urls) == 0 {
-// 					continue
-// 				}
-// 				err := urlUseCase.Repo.DeleteURL(ctx, urls)
-// 				resultCh <- err
-// 				if err != nil {
-// 					// logger.Log.Debug("cannot save urls", zap.Error(err))
-// 					// не будем стирать сообщения, попробуем отправить их чуть позже
-// 					continue
-// 				}
-// 				urls = nil
-// 			}
-// 		}
-// 	}()
-
-// 	go func() {
-// 		wg.Wait()
-// 		close(resultCh)
-// 	}()
-
-// 	// return resultCh
-// }
+	go func() {
+		for _, url := range urls {
+			select {
+			case <-ctx.Done():
+				return
+			case urlUseCase.inChan <- url:
+			}
+		}
+	}()
+}
 
 // flush постоянно сохраняет несколько сообщений в хранилище с определённым интервалом
 func (urlUseCase *URLUseCase) Flush() {
@@ -179,15 +148,12 @@ func (urlUseCase *URLUseCase) Flush() {
 		case url := <-urlUseCase.inChan:
 			urls = append(urls, url)
 		case <-ticker.C:
-			fmt.Println("urls", urls)
 
 			if len(urls) == 0 {
 				continue
 			}
 			err := urlUseCase.Repo.DeleteURL(context.TODO(), urls)
 			if err != nil {
-				// logger.Log.Debug("cannot save urls", zap.Error(err))
-				// не будем стирать сообщения, попробуем отправить их чуть позже
 				continue
 			}
 			urls = nil
