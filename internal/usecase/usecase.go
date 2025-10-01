@@ -3,6 +3,9 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
+	// "sync"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -39,6 +42,7 @@ func convertToSingleType(urlIn any) models.URL {
 type URLUseCase struct {
 	Repo    URLRepository
 	Service *service.Service
+	inChan  chan models.URL
 }
 
 // NewURLUseCase - создание структуры URLUseCase.
@@ -46,6 +50,7 @@ func NewURLUseCase(repo URLRepository, service *service.Service) *URLUseCase {
 	return &URLUseCase{
 		Repo:    repo,
 		Service: service,
+		inChan:  make(chan models.URL, 1024),
 	}
 }
 
@@ -120,31 +125,78 @@ func (urlUseCase *URLUseCase) GetAllURLs(ctx context.Context, userID string) ([]
 	return urls, nil
 }
 
-// DeleteURLs - удаление сокращенных URL.
-func (urlUseCase *URLUseCase) DeleteURLs(ctx context.Context, urls []models.URL) error {
-	// вынесить в отдельную функцию
-	batchSize := 60
-	tempArray := [][]models.URL{}
+// // flush постоянно сохраняет несколько сообщений в хранилище с определённым интервалом
+// func (urlUseCase *URLUseCase) flush(ctx context.Context, inChan chan models.URL, resultCh chan error) {
+// 	// resultCh := make(chan error, 1024)
+// 	ticker := time.NewTicker(3 * time.Second)
 
-	for i := 0; i < len(urls); i += batchSize {
-		end := i + batchSize
-		end = min(end, len(urls))
-		temp := urls[i:end]
-		tempArray = append(tempArray, temp)
-	}
-	// вынесить в отдельную функцию
+// 	var urls []models.URL
+// 	var wg sync.WaitGroup
 
-	inputCh := urlUseCase.generator(ctx, tempArray)
-	//
-	channels := urlUseCase.fanOut(ctx, inputCh)
+// 	wg.Add(1)
+// 	go func() {
+// 		defer wg.Done()
 
-	//
-	resultCh := urlUseCase.fanIn(ctx, channels...)
+// 		for {
+// 			select {
+// 			case <-ctx.Done():
+// 				return
+// 			case url := <-inChan:
+// 				urls = append(urls, url)
+// 			case <-ticker.C:
 
-	for res := range resultCh {
-		if res != nil {
-			return res
+// 				if len(urls) == 0 {
+// 					continue
+// 				}
+// 				err := urlUseCase.Repo.DeleteURL(ctx, urls)
+// 				resultCh <- err
+// 				if err != nil {
+// 					// logger.Log.Debug("cannot save urls", zap.Error(err))
+// 					// не будем стирать сообщения, попробуем отправить их чуть позже
+// 					continue
+// 				}
+// 				urls = nil
+// 			}
+// 		}
+// 	}()
+
+// 	go func() {
+// 		wg.Wait()
+// 		close(resultCh)
+// 	}()
+
+// 	// return resultCh
+// }
+
+// flush постоянно сохраняет несколько сообщений в хранилище с определённым интервалом
+func (urlUseCase *URLUseCase) Flush() {
+	ticker := time.NewTicker(3 * time.Second)
+
+	var urls []models.URL
+
+	for {
+		select {
+		case url := <-urlUseCase.inChan:
+			urls = append(urls, url)
+		case <-ticker.C:
+			fmt.Println("urls", urls)
+
+			if len(urls) == 0 {
+				continue
+			}
+			err := urlUseCase.Repo.DeleteURL(context.TODO(), urls)
+			if err != nil {
+				// logger.Log.Debug("cannot save urls", zap.Error(err))
+				// не будем стирать сообщения, попробуем отправить их чуть позже
+				continue
+			}
+			urls = nil
 		}
 	}
+}
+
+// DeleteURLs - удаление сокращенных URL.
+func (urlUseCase *URLUseCase) DeleteURLs(ctx context.Context, urls []models.URL) error {
+	urlUseCase.generator(ctx, urls)
 	return nil
 }
