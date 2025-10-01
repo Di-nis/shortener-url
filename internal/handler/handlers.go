@@ -338,7 +338,7 @@ func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
-
+	
 	defer req.Body.Close()
 
 	for _, short := range shorts {
@@ -355,5 +355,4 @@ func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	res.WriteHeader(http.StatusAccepted)
-	// return
 }

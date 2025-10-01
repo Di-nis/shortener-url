@@ -181,15 +181,15 @@ func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID string) ([]mode
 }
 
 func (repo *RepoPostgres) DeleteURL(ctx context.Context, urls []models.URL) error {
-	fmt.Println("мы тут")
-	fmt.Println("мы тут номер 2", urls)
+	// fmt.Println("мы тут")
+	// fmt.Println("мы тут номер 2", urls)
 
 	// соберём данные для создания запроса с групповой вставкой
 	var values []string
 	var args []any
 
 	for i, url := range urls {
-		fmt.Println(url)
+		// fmt.Println(url)
 		// в нашем запросе по 2 параметра на каждое сообщение
 		base := i * 2
 		// PostgreSQL требует шаблоны в формате ($1, $2) для каждой вставки
@@ -199,17 +199,10 @@ func (repo *RepoPostgres) DeleteURL(ctx context.Context, urls []models.URL) erro
 	}
 	fmt.Println(args...)
 
-	// составляем строку запроса
-
-	// query := `
-    // INSERT INTO messages
-    // (sender, recepient, payload, sent_at)
-    // VALUES ` + strings.Join(values, ",") + `;`
-
 	query := `
-	UPDATE urls u SET is_deleted = true FROM (VALUES ` + strings.Join(values, ",") + `) AS v(short, user_id) WHERE u.short = v.short AND u.user_id = v.user_id;`
+	UPDATE urls AS u SET is_deleted = true FROM (VALUES ` + strings.Join(values, ",") + `) AS v(short, user_id) WHERE u.short = v.short AND u.user_id = v.user_id;`
 
-	fmt.Println(query)
+	// fmt.Println(query)
 	// добавляем новые сообщения в БД
 	_, err := repo.db.ExecContext(ctx, query, args...)
 	fmt.Println(err)

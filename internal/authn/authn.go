@@ -23,7 +23,13 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		var userID string
 		JWTSecret := os.Getenv("JWT_SECRET")
-		tokenString := req.Header.Get("Authorization")
+		tokenString := ""
+		cookie, err := req.Cookie("auth_token")
+		if err != nil {
+			tokenString = ""
+		} else {
+			tokenString = cookie.Value
+		}
 
 		if tokenString == "" {
 			userID = GenerateUserID()
@@ -49,6 +55,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 				http.Error(res, "Невалидный токен", http.StatusUnauthorized)
 				return
 			}
+			http.SetCookie(res, cookie)
 			res.Header().Set("Authorization", tokenString)
 		}
 
