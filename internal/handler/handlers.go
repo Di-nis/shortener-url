@@ -114,7 +114,7 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusCreated)
 
-	bodyResult, err := json.Marshal(urls)
+	bodyResult, err := json.Marshal(createdURLs)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
@@ -320,6 +320,8 @@ func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
 // deleteURLs - удаление сокращенных URL.
 func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
 	ctx := context.TODO()
+	// ctx, cancel := context.WithCancel(context.Background())
+	// defer cancel()
 
 	if req.Method != http.MethodDelete {
 		res.WriteHeader(http.StatusMethodNotAllowed)

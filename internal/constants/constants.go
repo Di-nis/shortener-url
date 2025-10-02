@@ -22,4 +22,6 @@ var (
 	ErrorMethodNotAllowed = errors.New("method not allowed")
 	// URL уже удален
 	ErrorURLAlreadyDeleted = errors.New("URL already deleted")
+	// нет валидных данных
+	ErrorNoData = errors.New("URL already deleted")
 )

@@ -4,20 +4,12 @@ import (
 	"os"
 	"testing"
 
-	// "github.com/joho/godotenv"
-
 	"github.com/Di-nis/shortener-url/internal/authn"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetUserID(t *testing.T) {
-
-	// err := godotenv.Load("../../.env")
-	// if err != nil {
-	// 	t.Error(err)
-	// }
 	secretKey := os.Getenv("JWT_SECRET")
-	// JWTToken := os.Getenv("JWT_TOKEN")
 
 	tests := []struct {
 		name        string
@@ -25,12 +17,6 @@ func TestGetUserID(t *testing.T) {
 		secretKey   string
 		want        string
 	}{
-		// {
-		// 	name:        "TestGetUserID, userID найден",
-		// 	tokenString: JWTToken,
-		// 	secretKey:   secretKey,
-		// 	want:        "01K5PRT8MGHV2J7BSMP6H39TGF",
-		// },
 		{
 			name:        "TestGetUserID, токен невалидный",
 			tokenString: "fsdffvdfrgfxvbxdf",
