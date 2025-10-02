@@ -319,9 +319,9 @@ func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
 
 // deleteURLs - удаление сокращенных URL.
 func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
-	ctx := context.TODO()
-	// ctx, cancel := context.WithCancel(context.Background())
-	// defer cancel()
+	// ctx := context.TODO()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	if req.Method != http.MethodDelete {
 		res.WriteHeader(http.StatusMethodNotAllowed)

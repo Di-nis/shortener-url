@@ -161,6 +161,7 @@ func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID string) ([]mode
 }
 
 func (repo *RepoPostgres) DeleteURL(ctx context.Context, urls []models.URL) error {
+	fmt.Println("urls", urls)
 	if len(urls) == 0 {
 		return constants.ErrorNoData
 	}

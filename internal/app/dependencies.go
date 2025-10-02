@@ -76,7 +76,7 @@ func initStorage(cfg *config.Config) (usecase.URLRepository, error) {
 func setupRouter(cfg *config.Config, repo usecase.URLRepository, svc *service.Service) http.Handler {
 	urlUseCase := usecase.NewURLUseCase(repo, svc)
 
-	go urlUseCase.Flush()
+	// go urlUseCase.Flush()
 
 	controller := handler.NewСontroller(urlUseCase, cfg)
 	return controller.CreateRouter()

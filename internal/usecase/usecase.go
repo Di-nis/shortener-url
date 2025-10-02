@@ -3,7 +3,8 @@ package usecase
 import (
 	"context"
 	"errors"
-	"time"
+	"fmt"
+	"sync"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -40,7 +41,7 @@ func convertToSingleType(urlIn any) models.URL {
 type URLUseCase struct {
 	Repo    URLRepository
 	Service *service.Service
-	inChan  chan models.URL
+	// inChan  chan models.URL
 }
 
 // NewURLUseCase - создание структуры URLUseCase.
@@ -48,7 +49,7 @@ func NewURLUseCase(repo URLRepository, service *service.Service) *URLUseCase {
 	return &URLUseCase{
 		Repo:    repo,
 		Service: service,
-		inChan:  make(chan models.URL, 1024),
+		// inChan:  make(chan models.URL, 1024),
 	}
 }
 
@@ -124,45 +125,117 @@ func (urlUseCase *URLUseCase) GetAllURLs(ctx context.Context, userID string) ([]
 }
 
 // generator - генерирует сообщения в канал.
-func (urlUseCase *URLUseCase) generator(ctx context.Context, urls []models.URL) {
+func (urlUseCase *URLUseCase) generator(ctx context.Context, urls []models.URL, inChan chan models.URL) {
 
-	go func() {
-		for _, url := range urls {
-			select {
-			case <-ctx.Done():
-				return
-			case urlUseCase.inChan <- url:
-			}
+	// go func() {
+	for _, url := range urls {
+		select {
+		case <-ctx.Done():
+			return
+		case inChan <- url:
 		}
-	}()
+	}
+	// }()
 }
 
 // flush постоянно сохраняет несколько сообщений в хранилище с определённым интервалом
-func (urlUseCase *URLUseCase) Flush() {
-	ticker := time.NewTicker(3 * time.Second)
+// func (urlUseCase *URLUseCase) Flush() {
+// 	ticker := time.NewTicker(3 * time.Second)
 
-	var urls []models.URL
+// 	var urls []models.URL
+
+// 	for {
+// 		select {
+// 		case url := <-urlUseCase.inChan:
+// 			urls = append(urls, url)
+// 		case <-ticker.C:
+
+// 			if len(urls) == 0 {
+// 				continue
+// 			}
+// 			err := urlUseCase.Repo.DeleteURL(context.TODO(), urls)
+// 			if err != nil {
+// 				continue
+// 			}
+// 			urls = nil
+// 		}
+// 	}
+// }
+
+func (urlUseCase *URLUseCase) worker(ctx context.Context, id int, urls <-chan models.URL, result chan error, wg *sync.WaitGroup) {
+	// defer wg.Done()
+	urlsToDB := make([]models.URL, 0, 100)
 
 	for {
 		select {
-		case url := <-urlUseCase.inChan:
-			urls = append(urls, url)
-		case <-ticker.C:
+		case <-ctx.Done():
+			// если завершаем воркер — сбрасываем накопленные данные
+			if len(urlsToDB) > 0 {
+				result <- urlUseCase.Repo.DeleteURL(ctx, urlsToDB)
+			}
+			return
 
-			if len(urls) == 0 {
-				continue
+		case url, ok := <-urls:
+			if !ok {
+				// канал закрыт — финальный сброс
+				if len(urlsToDB) > 0 {
+					result <- urlUseCase.Repo.DeleteURL(ctx, urlsToDB)
+				}
+				return
 			}
-			err := urlUseCase.Repo.DeleteURL(context.TODO(), urls)
-			if err != nil {
-				continue
+			urlsToDB = append(urlsToDB, url)
+			if len(urlsToDB) >= 1 {
+				result <- urlUseCase.Repo.DeleteURL(ctx, urlsToDB)
+				urlsToDB = urlsToDB[:0]
 			}
-			urls = nil
+			// wg.Done()
+
 		}
 	}
+
+	// go func() {
+	// 	wg.Wait()
+	// 	close(result)
+	// }()
 }
 
 // DeleteURLs - удаление сокращенных URL.
 func (urlUseCase *URLUseCase) DeleteURLs(ctx context.Context, urls []models.URL) error {
-	urlUseCase.generator(ctx, urls)
+	const numWorkers = 3
+	fmt.Println("urls_1", urls)
+	inChan := make(chan models.URL, 1024)
+	resultChan := make(chan error, numWorkers)
+	// defer close(inChan)
+	// defer close(resultChan)
+
+	// const numWorkers = 3
+	go func() {
+		defer close(inChan)
+		urlUseCase.generator(ctx, urls, inChan)
+	}()
+
+	var wg sync.WaitGroup
+
+	// Запускаем воркеров
+	for w := 1; w <= numWorkers; w++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			urlUseCase.worker(ctx, w, inChan, resultChan, &wg)
+		}(w)
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	var firstErr error
+	for err := range resultChan {
+		if err != nil && firstErr == nil {
+			firstErr = err // возвращаем первую ошибку
+		}
+	}
 	return nil
+
 }
