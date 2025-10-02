@@ -60,7 +60,6 @@ func (repo *RepoPostgres) Migrations() error {
 	}
 
 	err3 := m.Up()
-	// тут надо подумать над обработкой ошибок
 	if errors.Is(err3, migrate.ErrNoChange) {
 		return nil
 	} else if err3 != nil {
@@ -70,12 +69,8 @@ func (repo *RepoPostgres) Migrations() error {
 }
 
 func (repo *RepoPostgres) CreateOrdinary(ctx context.Context, url models.URL) error {
-	stmt, err := repo.db.PrepareContext(ctx, "INSERT INTO urls (original, short, user_id) VALUES ($1, $2, $3)")
-	if err != nil {
-		return err
-	}
-
-	_, err = stmt.ExecContext(ctx, url.Original, url.Short, url.UUID)
+	query := "INSERT INTO urls (original, short, user_id) VALUES ($1, $2, $3)"
+	_, err := repo.db.ExecContext(ctx, query, url.Original, url.Short, url.UUID)
 	if err != nil {
 		return err
 	}
@@ -84,11 +79,9 @@ func (repo *RepoPostgres) CreateOrdinary(ctx context.Context, url models.URL) er
 
 func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL) error {
 	tx, err := repo.db.Begin()
-
 	if err != nil {
 		return err
 	}
-
 	defer tx.Rollback()
 
 	stmt, err := repo.db.PrepareContext(ctx, "INSERT INTO urls (original, short, user_id) VALUES ($1, $2, $3)")
@@ -106,16 +99,11 @@ func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL) er
 }
 
 func (repo *RepoPostgres) GetShortURL(ctx context.Context, urlOriginal string) (string, error) {
-	stmt, err := repo.db.PrepareContext(ctx, "SELECT short FROM urls WHERE original = $1")
-	if err != nil {
-		return "", err
-	}
-	defer stmt.Close()
-
-	row := stmt.QueryRowContext(ctx, urlOriginal)
+	query := "SELECT short FROM urls WHERE original = $1"
+	row := repo.db.QueryRowContext(ctx, query, urlOriginal)
 
 	var urlShort string
-	err = row.Scan(&urlShort)
+	err := row.Scan(&urlShort)
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		return "", constants.ErrorURLNotExist
 	}
@@ -123,16 +111,11 @@ func (repo *RepoPostgres) GetShortURL(ctx context.Context, urlOriginal string) (
 }
 
 func (repo *RepoPostgres) GetOriginalURL(ctx context.Context, urlShort string) (string, error) {
-	stmt, err := repo.db.PrepareContext(ctx, "SELECT original, is_deleted FROM urls WHERE short = $1")
-	if err != nil {
-		return "", err
-	}
-	defer stmt.Close()
-
-	row := stmt.QueryRowContext(ctx, urlShort)
+	query := "SELECT original, is_deleted FROM urls WHERE short = $1"
+	row := repo.db.QueryRowContext(ctx, query, urlShort)
 
 	var url models.URL
-	err = row.Scan(&url.Original, &url.DeletedFlag)
+	err := row.Scan(&url.Original, &url.DeletedFlag)
 
 	if url.DeletedFlag {
 		return "", constants.ErrorURLAlreadyDeleted
@@ -153,7 +136,6 @@ func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID string) ([]mode
 	defer stmt.Close()
 
 	rows, err := stmt.QueryContext(ctx, userID)
-	// требуется дополнительно уточнить, как писать
 	if rows.Err() != nil {
 		return nil, err
 	}
@@ -179,6 +161,10 @@ func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID string) ([]mode
 }
 
 func (repo *RepoPostgres) DeleteURL(ctx context.Context, urls []models.URL) error {
+	if len(urls) == 0 {
+		return constants.ErrorNoData
+	}
+
 	var values []string
 	var args []any
 
