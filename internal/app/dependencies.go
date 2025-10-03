@@ -27,12 +27,15 @@ func initConfigAndLogger() (*config.Config, error) {
 }
 
 func initRepoPostgres(cfg *config.Config) (*repository.RepoPostgres, error) {
-	repo := repository.NewRepoPostgres(cfg.DataBaseDSN)
+	repo, err := repository.NewRepoPostgres(cfg.DataBaseDSN)
+	if err != nil {
+		return nil, err
+	}
 
 	// выполнение миграций
-	err := repo.Migrations()
+	err = repo.Migrations()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	return repo, nil
@@ -63,24 +66,16 @@ func initRepoFile(cfg *config.Config) (*repository.RepoFile, error) {
 	return repo, nil
 }
 
-func initRepoMemory() (*repository.RepoMemory, error) {
-	repo := repository.NewRepoMemory()
-	return repo, nil
-}
-
 func initStorage(cfg *config.Config) (usecase.URLRepository, error) {
-	switch {
-	case cfg.DataBaseDSN != "":
+	if cfg.DataBaseDSN != "" {
 		return initRepoPostgres(cfg)
-	case cfg.FileStoragePath != "":
-		return initRepoFile(cfg)
-	default:
-		return initRepoMemory()
 	}
+	return initRepoFile(cfg)
 }
 
 func setupRouter(cfg *config.Config, repo usecase.URLRepository, svc *service.Service) http.Handler {
 	urlUseCase := usecase.NewURLUseCase(repo, svc)
+
 	controller := handler.NewСontroller(urlUseCase, cfg)
 	return controller.CreateRouter()
 }

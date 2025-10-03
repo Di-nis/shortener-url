@@ -40,6 +40,10 @@ func NewRepoFile(fileStoragePath string, storage *Storage) *RepoFile {
 	}
 }
 
+func (repo *RepoFile) Ping(ctx context.Context) error {
+	return constants.ErrorMethodNotAllowed
+}
+
 // CreateBatch - сохранение URL в базу данных.
 func (repo *RepoFile) CreateBatch(ctx context.Context, urls []models.URL) error {
 	for _, url := range urls {
@@ -51,16 +55,18 @@ func (repo *RepoFile) CreateBatch(ctx context.Context, urls []models.URL) error 
 
 		repo.OriginalAndShortURL = append(repo.OriginalAndShortURL, url)
 
-		err := repo.Storage.Producer.SaveToFile(url)
-		if err != nil {
-			return err
+		if repo.FileStoragePath != "" {
+			err := repo.Storage.Producer.SaveToFile(url)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-// CreateOrdinaty - сохранение URL в базу данных.
-func (repo *RepoFile) CreateOrdinaty(ctx context.Context, url models.URL) error {
+// CreateOrdinary - сохранение URL в базу данных.
+func (repo *RepoFile) CreateOrdinary(ctx context.Context, url models.URL) error {
 	for _, urlDB := range repo.OriginalAndShortURL {
 		if urlDB.Original == url.Original {
 			return constants.ErrorURLAlreadyExist
@@ -69,9 +75,11 @@ func (repo *RepoFile) CreateOrdinaty(ctx context.Context, url models.URL) error 
 
 	repo.OriginalAndShortURL = append(repo.OriginalAndShortURL, url)
 
-	err := repo.Storage.Producer.SaveToFile(url)
-	if err != nil {
-		return err
+	if repo.FileStoragePath != "" {
+		err := repo.Storage.Producer.SaveToFile(url)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 
@@ -79,9 +87,11 @@ func (repo *RepoFile) CreateOrdinaty(ctx context.Context, url models.URL) error 
 
 // GetOriginalURL - получение оригинального URL из базы данных.
 func (repo *RepoFile) GetOriginalURL(ctx context.Context, shortURL string) (string, error) {
-	for _, urlData := range repo.OriginalAndShortURL {
-		if urlData.Short == shortURL {
-			return urlData.Original, nil
+	for _, url := range repo.OriginalAndShortURL {
+		if url.Short == shortURL && url.DeletedFlag {
+			return "", constants.ErrorURLAlreadyDeleted
+		} else if url.Short == shortURL {
+			return url.Original, nil
 		}
 	}
 	return "", constants.ErrorURLNotExist
@@ -89,10 +99,34 @@ func (repo *RepoFile) GetOriginalURL(ctx context.Context, shortURL string) (stri
 
 // GetShortURL - получение оригинального URL из базы данных.
 func (repo *RepoFile) GetShortURL(ctx context.Context, originalURL string) (string, error) {
-	for _, urlData := range repo.OriginalAndShortURL {
-		if urlData.Original == originalURL {
-			return urlData.Short, nil
+	for _, url := range repo.OriginalAndShortURL {
+		if url.Original == originalURL {
+			return url.Short, nil
 		}
 	}
 	return "", constants.ErrorURLNotExist
+}
+
+// // GetAllURLs - получение всех когда-либо сокращенных пользователем URL.
+func (repo *RepoFile) GetAllURLs(ctx context.Context, userID string) ([]models.URL, error) {
+	var urls []models.URL
+
+	for _, url := range repo.OriginalAndShortURL {
+		if url.UUID == userID {
+			urls = append(urls, url)
+		}
+	}
+	return urls, nil
+}
+
+func (repo *RepoFile) DeleteURL(ctx context.Context, urls []models.URL) error {
+	for _, url := range urls {
+		for i, urlDB := range repo.OriginalAndShortURL {
+			if urlDB.Short == url.Short && urlDB.UUID == url.UUID && !urlDB.DeletedFlag {
+				repo.OriginalAndShortURL[i].Original = ""
+				repo.OriginalAndShortURL[i].DeletedFlag = true
+			}
+		}
+	}
+	return nil
 }

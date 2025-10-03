@@ -2,23 +2,26 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
 	"reflect"
 
+	"github.com/Di-nis/shortener-url/internal/authn"
+	"github.com/Di-nis/shortener-url/internal/compress"
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/constants"
+	"github.com/Di-nis/shortener-url/internal/logger"
 	"github.com/Di-nis/shortener-url/internal/models"
 	"github.com/Di-nis/shortener-url/internal/usecase"
 
 	"github.com/go-chi/chi/v5"
 
-	"database/sql"
-
 	"context"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -40,11 +43,16 @@ func NewСontroller(urlUseCase *usecase.URLUseCase, config *config.Config) *Cont
 func (c *Controller) CreateRouter() http.Handler {
 	router := chi.NewRouter()
 
+	router.Use(authn.AuthMiddleware, logger.WithLogging, compress.GzipMiddleware)
+
 	router.Post("/api/shorten/batch", c.createURLShortJSONBatch)
 	router.Post("/api/shorten", c.createURLShortJSON)
 	router.Post("/", c.createURLShortText)
+	router.Get("/api/user/urls", c.getAllURLs)
+	router.Delete("/api/user/urls", c.deleteURLs)
 	router.Get("/{short_url}", c.getlURLOriginal)
 	router.Get("/ping", c.pingDB)
+
 	return router
 }
 
@@ -58,43 +66,63 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 		return
 	}
 
-	bodyBytes, _ := io.ReadAll(req.Body)
-	if reflect.DeepEqual(bodyBytes, []byte{}) {
+	bodyBytes, err := io.ReadAll(req.Body)
+	if err != nil {
 		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
-		res.Header().Set("Content-Type", "")
+		return
+	}
+	defer req.Body.Close()
+
+	if len(bodyBytes) == 0 {
+		http.Error(res, "Тело запроса пустое", http.StatusBadRequest)
 		return
 	}
 
-	defer req.Body.Close()
+	userID := req.Context().Value(constants.UserIDKey).(string)
 
 	var urls []models.URL
 	if err := json.Unmarshal(bodyBytes, &urls); err != nil {
-		http.Error(res, err.Error(), http.StatusBadRequest)
+		http.Error(res, "Неверный формат JSON", http.StatusBadRequest)
 		return
 	}
 
-	urls, err := c.URLUseCase.CreateURLBatch(ctx, urls)
+	if len(urls) == 0 {
+		http.Error(res, "Пустой массив URL", http.StatusBadRequest)
+		return
+	}
+
+	for i := range urls {
+		urls[i].UUID = userID
+	}
+
+	createdURLs, err := c.URLUseCase.CreateURLBatch(ctx, urls, c.Config.BaseURL)
 	if err != nil {
-		res.WriteHeader(http.StatusConflict)
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			res.WriteHeader(http.StatusConflict)
+		} else {
+			http.Error(res, "Ошибка создания URL", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	for idx := range urls {
-		urls[idx].Short = addBaseURLToResponse(c.Config.BaseURL, urls[idx].Short)
-	}
-
-	bodyResult, err := json.Marshal(urls)
-	if err != nil {
-		http.Error(res, err.Error(), http.StatusInternalServerError)
-		return
+	// Добавление базового URL
+	for i := range createdURLs {
+		createdURLs[i].Short = addBaseURLToResponse(c.Config.BaseURL, createdURLs[i].Short)
 	}
 
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusCreated)
 
+	bodyResult, err := json.Marshal(createdURLs)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Ошибка записи ответа: %v", err)
 	}
 }
 
@@ -111,11 +139,13 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 	bodyBytes, _ := io.ReadAll(req.Body)
 	if reflect.DeepEqual(bodyBytes, []byte{}) {
 		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
-		res.Header().Set("Content-Type", "")
 		return
 	}
 
 	defer req.Body.Close()
+
+	// Получение userID через middleware Auth
+	userID := req.Context().Value(constants.UserIDKey).(string)
 
 	var (
 		urlInOut models.URLCopyOne
@@ -127,7 +157,9 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut)
+	urlInOut.UUID = userID
+
+	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut, c.Config.BaseURL)
 
 	url.Short = addBaseURLToResponse(c.Config.BaseURL, url.Short)
 	urlInOut = models.URLCopyOne(url)
@@ -166,11 +198,15 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 
 	defer req.Body.Close()
 
+	// Получение userID через middleware Auth
+	userID := req.Context().Value(constants.UserIDKey).(string)
+
 	urlIn := models.URL{
 		Original: string(bodyBytes),
+		UUID:     userID,
 	}
 
-	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn)
+	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn, c.Config.BaseURL)
 	urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 
 	res.Header().Set("Content-Type", "text/plain")
@@ -183,7 +219,55 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 	}
 }
 
-// getlURLOriginal - обрабатка HTTP-запроса: тип запроcа - GET, вовзвращает оригинальный URL.
+// getAllURLs - получение всех когда-либо сокращенных пользователем URL.
+func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
+	defer cancel()
+
+	if req.Method != http.MethodGet {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	defer req.Body.Close()
+
+	userID := req.Context().Value(constants.UserIDKey).(string)
+
+	urls, err := c.URLUseCase.GetAllURLs(ctx, userID)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+	}
+
+	var urlsOut []models.URLCopyFour
+	var urlOut models.URLCopyFour
+
+	for _, url := range urls {
+		urlOut = models.URLCopyFour(url)
+		urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
+		urlsOut = append(urlsOut, urlOut)
+	}
+
+	// При отсутствии сокращённых пользователем URL хендлер должен отдавать HTTP-статус 204 No Content.
+	if len(urlsOut) == 0 {
+		res.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	bodyResult, err2 := json.Marshal(urlsOut)
+	if err2 != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+
+	_, err = res.Write([]byte(bodyResult))
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// getlURLOriginal - обрабатка HTTP-запроса: тип запроcа - GET, возвращает оригинальный URL.
 func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
 	defer cancel()
@@ -197,9 +281,16 @@ func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request)
 	defer req.Body.Close()
 
 	urlOriginal, err := c.URLUseCase.GetOriginalURL(ctx, URLShort)
-	if err != nil && err == constants.ErrorURLNotExist {
-		res.WriteHeader(http.StatusNotFound)
-		return
+	if err != nil {
+		if err == constants.ErrorURLNotExist {
+			res.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if err == constants.ErrorURLAlreadyDeleted {
+			res.WriteHeader(http.StatusGone)
+			return
+		}
+
 	}
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
@@ -211,17 +302,54 @@ func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request)
 }
 
 func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
-	db, err := sql.Open("pgx", c.Config.DataBaseDSN)
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
-
-	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
 	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
+
+	if err := c.URLUseCase.Ping(ctx); err != nil {
+		switch {
+		case errors.Is(err, constants.ErrorMethodNotAllowed):
+			res.WriteHeader(http.StatusMethodNotAllowed)
+		default:
+			res.WriteHeader(http.StatusInternalServerError)
+		}
+	} else {
+		res.WriteHeader(http.StatusOK)
+	}
+}
+
+// deleteURLs - удаление сокращенных URL.
+func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if req.Method != http.MethodDelete {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 
-	res.WriteHeader(http.StatusOK)
+	// Получение userID через middleware Auth
+	userID := req.Context().Value(constants.UserIDKey).(string)
+
+	var shorts []string
+	urls := []models.URL{}
+
+	if err := json.NewDecoder(req.Body).Decode(&shorts); err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	defer req.Body.Close()
+
+	for _, short := range shorts {
+		urls = append(urls, models.URL{
+			Short: short,
+			UUID:  userID,
+		})
+	}
+
+	if err := c.URLUseCase.DeleteURLs(ctx, urls); err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	res.WriteHeader(http.StatusAccepted)
 }

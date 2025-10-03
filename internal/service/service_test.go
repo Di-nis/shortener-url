@@ -1,29 +1,29 @@
 package service
 
-import(
+import (
 	"github.com/Di-nis/shortener-url/internal/constants"
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestService_ShortHash(t *testing.T) {
 	tests := []struct {
-		name string
+		name   string
 		data   string
 		length int
 		want   string
 	}{
 		{
-			name: "Тест #1",
-			data: "https://practicum.yandex.ru",
+			name:   "Тест #1",
+			data:   "https://practicum.yandex.ru",
 			length: constants.HashLength,
-			want: "bTKNZu94",
+			want:   "bTKNZu94",
 		},
 		{
-			name: "Тест #2",
-			data: "https://www.sports.ru",
+			name:   "Тест #2",
+			data:   "https://www.sports.ru",
 			length: constants.HashLength,
-			want: "4BeKySvE",
+			want:   "4BeKySvE",
 		},
 	}
 	for _, tt := range tests {

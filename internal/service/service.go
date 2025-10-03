@@ -1,6 +1,8 @@
 package service
 
-import "crypto/sha256"
+import (
+	"crypto/sha256"
+)
 
 var base62Alphabet = []byte("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
