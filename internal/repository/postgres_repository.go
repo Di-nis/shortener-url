@@ -18,10 +18,12 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// RepoPostgres - репозиторий для работы с БД Postgres.
 type RepoPostgres struct {
 	db *sql.DB
 }
 
+// NewRepoPostgres - конструктор репозитория.
 func NewRepoPostgres(dataSourceName string) (*RepoPostgres, error) {
 	db, err := sql.Open("pgx", dataSourceName)
 	if err != nil {
@@ -37,14 +39,17 @@ func NewRepoPostgres(dataSourceName string) (*RepoPostgres, error) {
 	}, nil
 }
 
+// Ping - проверка соединения с БД.
 func (repo *RepoPostgres) Ping(ctx context.Context) error {
 	return repo.db.PingContext(ctx)
 }
 
+// Close - закрытие соединения с БД.
 func (repo *RepoPostgres) Close() error {
 	return repo.db.Close()
 }
 
+// Migrations - миграции БД.
 func (repo *RepoPostgres) Migrations() error {
 	driver, err1 := postgres.WithInstance(repo.db, &postgres.Config{})
 	if err1 != nil {
@@ -68,7 +73,8 @@ func (repo *RepoPostgres) Migrations() error {
 	return nil
 }
 
-func (repo *RepoPostgres) CreateOrdinary(ctx context.Context, url models.URL) error {
+// InsertOrdinary - добавление ординарного URL в БД.
+func (repo *RepoPostgres) InsertOrdinary(ctx context.Context, url models.URL) error {
 	query := "INSERT INTO urls (original, short, user_id) VALUES ($1, $2, $3)"
 	_, err := repo.db.ExecContext(ctx, query, url.Original, url.Short, url.UUID)
 	if err != nil {
@@ -77,7 +83,8 @@ func (repo *RepoPostgres) CreateOrdinary(ctx context.Context, url models.URL) er
 	return nil
 }
 
-func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL) error {
+// InsertBatch - добавление нескольких URL в БД.
+func (repo *RepoPostgres) InsertBatch(ctx context.Context, urls []models.URL) error {
 	tx, err := repo.db.Begin()
 	if err != nil {
 		return err
@@ -98,7 +105,8 @@ func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL) er
 	return tx.Commit()
 }
 
-func (repo *RepoPostgres) GetShortURL(ctx context.Context, urlOriginal string) (string, error) {
+// SelectShort - получение короткого URL по оригинальному.
+func (repo *RepoPostgres) SelectShort(ctx context.Context, urlOriginal string) (string, error) {
 	query := "SELECT short FROM urls WHERE original = $1"
 	row := repo.db.QueryRowContext(ctx, query, urlOriginal)
 
@@ -110,7 +118,8 @@ func (repo *RepoPostgres) GetShortURL(ctx context.Context, urlOriginal string) (
 	return urlShort, nil
 }
 
-func (repo *RepoPostgres) GetOriginalURL(ctx context.Context, urlShort string) (string, error) {
+// SelectOriginal - получение оригинального URL по короткому.
+func (repo *RepoPostgres) SelectOriginal(ctx context.Context, urlShort string) (string, error) {
 	query := "SELECT original, is_deleted FROM urls WHERE short = $1"
 	row := repo.db.QueryRowContext(ctx, query, urlShort)
 
@@ -128,7 +137,7 @@ func (repo *RepoPostgres) GetOriginalURL(ctx context.Context, urlShort string) (
 }
 
 // GetAllURLs - получение всех когда-либо сокращенных пользователем URL.
-func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID string) ([]models.URL, error) {
+func (repo *RepoPostgres) SelectAll(ctx context.Context, userID string) ([]models.URL, error) {
 	stmt, err := repo.db.PrepareContext(ctx, "SELECT original, short FROM urls WHERE user_id = $1")
 	if err != nil {
 		return nil, err
@@ -160,7 +169,8 @@ func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID string) ([]mode
 	return urls, nil
 }
 
-func (repo *RepoPostgres) DeleteURL(ctx context.Context, urls []models.URL) error {
+// Delete - удаление URL из БД.
+func (repo *RepoPostgres) Delete(ctx context.Context, urls []models.URL) error {
 	if len(urls) == 0 {
 		return constants.ErrorNoData
 	}

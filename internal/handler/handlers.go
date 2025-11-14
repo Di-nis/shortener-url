@@ -25,6 +25,16 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+// URLUseCase - интерфейс для бизнес-логики.
+type URLUseCase interface {
+	Ping(context.Context) error
+	CreateURLOrdinary(context.Context, any, string) (models.URL, error)
+	CreateURLBatch(context.Context, []models.URL, string) ([]models.URL, error)
+	GetOriginalURL(context.Context, string) (string, error)
+	GetAllURLs(context.Context, string) ([]models.URL, error)
+	DeleteURLs(context.Context, []models.URL) error
+}
+
 // Controller - структура HTTP-хендлера.
 type Controller struct {
 	URLUseCase *usecase.URLUseCase
