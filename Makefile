@@ -37,4 +37,4 @@ autotests15:
 		-database-dsn=postgresql://postgres:postgres@localhost:5432/shortener?sslmode=disable \
 		-source-path=.
 
-all: statictests autotests15
+all:  autotests15

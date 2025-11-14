@@ -15,12 +15,12 @@ import (
 // URLRepository - интерфейс для базы данных.
 type URLRepository interface {
 	Ping(context.Context) error
-	CreateBatch(context.Context, []models.URL) error
-	CreateOrdinary(context.Context, models.URL) error
-	GetOriginalURL(context.Context, string) (string, error)
-	GetShortURL(context.Context, string) (string, error)
-	GetAllURLs(context.Context, string) ([]models.URL, error)
-	DeleteURL(context.Context, []models.URL) error
+	InsertBatch(context.Context, []models.URL) error
+	InsertOrdinary(context.Context, models.URL) error
+	SelectOriginal(context.Context, string) (string, error)
+	SelectShort(context.Context, string) (string, error)
+	SelectAll(context.Context, string) ([]models.URL, error)
+	Delete(context.Context, []models.URL) error
 }
 
 // convertToSingleType - приведение к единому типу данных.
@@ -62,7 +62,7 @@ func (urlUseCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any, 
 	urlOrdinary := convertToSingleType(urlIn)
 	urlOrdinary.Short = urlUseCase.Service.ShortHash(urlOrdinary.Original, constants.HashLength)
 
-	err := urlUseCase.Repo.CreateOrdinary(ctx, urlOrdinary)
+	err := urlUseCase.Repo.InsertOrdinary(ctx, urlOrdinary)
 
 	if err == nil {
 		return urlOrdinary, nil
@@ -71,11 +71,11 @@ func (urlUseCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any, 
 	if errors.As(err, &PgErr) {
 		switch PgErr.Code {
 		case "23505":
-			urlOrdinary.Short, _ = urlUseCase.Repo.GetShortURL(ctx, urlOrdinary.Original)
+			urlOrdinary.Short, _ = urlUseCase.Repo.SelectShort(ctx, urlOrdinary.Original)
 		}
 		return urlOrdinary, err
 	} else if errors.Is(err, constants.ErrorURLAlreadyExist) {
-		urlOrdinary.Short, _ = urlUseCase.Repo.GetShortURL(ctx, urlOrdinary.Original)
+		urlOrdinary.Short, _ = urlUseCase.Repo.SelectShort(ctx, urlOrdinary.Original)
 		return urlOrdinary, err
 	} else {
 		return urlOrdinary, err
@@ -93,7 +93,7 @@ func (urlUseCase *URLUseCase) CreateURLBatch(ctx context.Context, urls []models.
 			urlsTemp := urls[idxTemp : idx+1]
 			idxTemp = idx + 1
 
-			err := urlUseCase.Repo.CreateBatch(ctx, urlsTemp)
+			err := urlUseCase.Repo.InsertBatch(ctx, urlsTemp)
 			if err != nil {
 				return nil, err
 			}
@@ -104,7 +104,7 @@ func (urlUseCase *URLUseCase) CreateURLBatch(ctx context.Context, urls []models.
 
 // GetURL - получение оригинального URL.
 func (urlUseCase *URLUseCase) GetOriginalURL(ctx context.Context, shortURL string) (string, error) {
-	originalURL, err := urlUseCase.Repo.GetOriginalURL(ctx, shortURL)
+	originalURL, err := urlUseCase.Repo.SelectOriginal(ctx, shortURL)
 	if err != nil {
 		return "", err
 	}
@@ -114,7 +114,7 @@ func (urlUseCase *URLUseCase) GetOriginalURL(ctx context.Context, shortURL strin
 
 // GetAllURLs - получение всех когда-либо сокращенных пользователем URL.
 func (urlUseCase *URLUseCase) GetAllURLs(ctx context.Context, userID string) ([]models.URL, error) {
-	urls, err := urlUseCase.Repo.GetAllURLs(ctx, userID)
+	urls, err := urlUseCase.Repo.SelectAll(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -139,20 +139,20 @@ func (urlUseCase *URLUseCase) worker(ctx context.Context, urls <-chan models.URL
 		select {
 		case <-ctx.Done():
 			if len(urlsToDB) > 0 {
-				result <- urlUseCase.Repo.DeleteURL(ctx, urlsToDB)
+				result <- urlUseCase.Repo.Delete(ctx, urlsToDB)
 			}
 			return
 
 		case url, ok := <-urls:
 			if !ok {
 				if len(urlsToDB) > 0 {
-					result <- urlUseCase.Repo.DeleteURL(ctx, urlsToDB)
+					result <- urlUseCase.Repo.Delete(ctx, urlsToDB)
 				}
 				return
 			}
 			urlsToDB = append(urlsToDB, url)
 			if len(urlsToDB) >= 1 {
-				result <- urlUseCase.Repo.DeleteURL(ctx, urlsToDB)
+				result <- urlUseCase.Repo.Delete(ctx, urlsToDB)
 				urlsToDB = urlsToDB[:0]
 			}
 
