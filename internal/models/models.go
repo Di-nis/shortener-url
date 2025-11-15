@@ -106,7 +106,7 @@ type URLCopyFour struct {
 
 // Audit - структура для хранения данных аудита.
 type Audit struct {
-	Ts     int64  `json:"ts"`
+	TS     int64  `json:"ts"`
 	Action string `json:"action"`
 	UserID string `json:"user_id"`
 	URL    string `json:"url"`
@@ -115,7 +115,7 @@ type Audit struct {
 // NewAudit - функция для создания нового экземпляра Audit.
 func NewAudit(action, userID, url string) *Audit {
 	return &Audit{
-		Ts:     time.Now().Unix(),
+		TS:     time.Now().Unix(),
 		Action: action,
 		UserID: userID,
 		URL:    url,

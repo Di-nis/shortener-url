@@ -55,7 +55,6 @@ func (c *Controller) CreateRouter() http.Handler {
 
 	router.Use(authn.AuthMiddleware, logger.WithLogging, compress.GzipMiddleware)
 
-	router.Get("/ping", c.pingDB)
 	router.Get("/api/user/urls", c.getAllURLs)
 	router.Post("/api/shorten/batch", c.createURLShortJSONBatch)
 	router.Delete("/api/user/urls", c.deleteURLs)
@@ -68,6 +67,7 @@ func (c *Controller) CreateRouter() http.Handler {
 		r.Get("/{short_url}", c.getURLOriginal)
 	})
 
+	router.Get("/ping", c.pingDB)
 	return router
 }
 

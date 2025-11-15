@@ -15,6 +15,7 @@ import (
 func WithAudit(auditFile, auditURL string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+			reqTemp := req
 			var (
 				action, userID, url string
 				urlInOut            models.URLCopyOne
@@ -22,26 +23,27 @@ func WithAudit(auditFile, auditURL string) func(http.Handler) http.Handler {
 
 			// определение поля user_id
 			userID = req.Context().Value(constants.UserIDKey).(string)
+			body := reqTemp.Body
+			method := reqTemp.Method
 
 			// определение поля action
-			switch req.Method {
+			switch method {
 			case http.MethodGet:
 				action = "follow"
 			case http.MethodPost:
 				action = "shorten"
 			}
 
-			if req.Method == http.MethodGet {
+			if method == http.MethodGet {
 				url = res.Header().Get("Location")
 				// TODO как перехватить url
 				// url = ?
 				fmt.Printf("%+v\n", res.Header())
 			}
-			if req.Method == http.MethodPost {
-				bodyBytes, err := io.ReadAll(req.Body)
+			if method == http.MethodPost {
+				bodyBytes, err := io.ReadAll(body)
 				if err != nil {
 					logger.Sugar.Errorf("path: internal/audit/audit.go, errror - %w", err)
-					// return
 				}
 				err = json.Unmarshal(bodyBytes, &urlInOut)
 				if err != nil {
@@ -56,14 +58,12 @@ func WithAudit(auditFile, auditURL string) func(http.Handler) http.Handler {
 				producer, err := NewProducer(auditFile)
 				if err != nil {
 					logger.Sugar.Errorf("path: internal/audit/audit.go, errror - %w", err)
-					// return
 				}
 				defer producer.Close()
 
 				err = producer.Write(audit)
 				if err != nil {
 					logger.Sugar.Errorf("path: internal/audit/audit.go, errror - %w", err)
-					// return
 				}
 			}
 
@@ -72,15 +72,14 @@ func WithAudit(auditFile, auditURL string) func(http.Handler) http.Handler {
 				data, err := json.Marshal(&audit)
 				if err != nil {
 					logger.Sugar.Errorf("path: internal/audit/audit.go, errror - %w", err)
-					// return
 				}
 
 				client := &http.Client{}
-				_, err = client.Post(auditURL, "application/json", bytes.NewBuffer(data))
+				response, err := client.Post(auditURL, "application/json", bytes.NewBuffer(data))
 				if err != nil {
 					logger.Sugar.Errorf("path: internal/audit/audit.go, errror - %w", err)
-					// return
 				}
+				defer response.Body.Close()
 			}
 			next.ServeHTTP(res, req)
 		})

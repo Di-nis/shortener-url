@@ -16,6 +16,12 @@ autotests9:
       -source-path=. \
       -file-storage-path=database.log
 
+autotests10:
+	shortenertest -test.v -test.run=^TestIteration10$ \
+      -binary-path=cmd/shortener/shortener \
+      -source-path=. \
+      -database-dsn=postgresql://postgres:postgres@localhost:5432/shortener?sslmode=disable
+
 autotests12:
 	shortenertest -test.v -test.run=^TestIteration12$ \
       -binary-path=cmd/shortener/shortener \
