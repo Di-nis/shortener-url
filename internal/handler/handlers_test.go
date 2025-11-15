@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Di-nis/shortener-url/internal/config"
+	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/repository"
 	"github.com/Di-nis/shortener-url/internal/service"
 	"github.com/Di-nis/shortener-url/internal/usecase"
@@ -202,7 +203,7 @@ func testCreateURLFromText(t *testing.T, server *httptest.Server) {
 			acceptEncoding:  "",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				body:        "Не удалось прочитать тело запроса\n",
+				body:        fmt.Sprintf("%s%s", constants.EmptyBodyError, "\n"),
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
@@ -267,7 +268,7 @@ func testCreateURLFromJSON(t *testing.T, server *httptest.Server) {
 			contentType: "application/json",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				body:        "Не удалось прочитать тело запроса\n",
+				body:        constants.EmptyBodyError,
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
@@ -278,7 +279,7 @@ func testCreateURLFromJSON(t *testing.T, server *httptest.Server) {
 			contentType: "application/json",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				body:        "json: cannot unmarshal number into Go struct field",
+				body:        constants.InvalidJSONError,
 				contentType: "text/plain; charset=utf-8",
 			},
 		},

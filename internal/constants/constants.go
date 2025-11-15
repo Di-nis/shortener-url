@@ -25,3 +25,12 @@ var (
 	// нет валидных данных
 	ErrorNoData = errors.New("URL already deleted")
 )
+
+var (
+	ReadRequestError   = "unable to read request body"
+	EmptyBodyError     = "request body is empty"
+	InvalidJSONError   = "invalid JSON format"
+	InternalError      = "internal error"
+	WriteResponseError = "error writing response"
+	NoContentError     = "no content"
+)

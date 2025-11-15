@@ -15,6 +15,8 @@ type Config struct {
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	DataBaseDSN     string `env:"DATABASE_DSN"`
 	JWTSecret       string `env:"JWT_SECRET"`
+	AuditFile       string `env:"AUDIT_FILE"`
+	AuditURL        string `env:"AUDIT_URL"`
 }
 
 func (a *Config) Parse() {
@@ -23,11 +25,13 @@ func (a *Config) Parse() {
 	_ = env.Parse(a)
 
 	// второй приоритет - из аргументов командной строки
-	var serverAddress, baseURL, fileStoragePath, dataBaseDSN string
+	var serverAddress, baseURL, fileStoragePath, dataBaseDSN, auditFile, auditURL string
 	flag.StringVar(&serverAddress, "a", "localhost:8080", "URL")
 	flag.StringVar(&baseURL, "b", "http://localhost:8080", "Base URL")
 	flag.StringVar(&fileStoragePath, "f", "database.log", "File Storage Path")
 	flag.StringVar(&dataBaseDSN, "d", "", "Database Source Name")
+	flag.StringVar(&auditFile, "audit-file", "", "Audit File Path")
+	flag.StringVar(&auditURL, "audit-url", "", "Audit URL Path")
 
 	flag.Parse()
 
@@ -40,11 +44,10 @@ func (a *Config) Parse() {
 	if a.FileStoragePath == "" {
 		a.FileStoragePath = fileStoragePath
 	}
-
-	if a.DataBaseDSN == "" {
-		a.DataBaseDSN = dataBaseDSN
+	if a.AuditFile == "" {
+		a.AuditFile = auditFile
 	}
-	// if a.LogLevel == "" {
-	//  a.LogLevel = logLevel
-	// }
+	if a.AuditURL == "" {
+		a.AuditURL = auditURL
+	}
 }

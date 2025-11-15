@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"net/http"
 	"reflect"
 
+	// "github.com/Di-nis/shortener-url/internal/audit"
 	"github.com/Di-nis/shortener-url/internal/authn"
 	"github.com/Di-nis/shortener-url/internal/compress"
 	"github.com/Di-nis/shortener-url/internal/config"
@@ -55,13 +55,18 @@ func (c *Controller) CreateRouter() http.Handler {
 
 	router.Use(authn.AuthMiddleware, logger.WithLogging, compress.GzipMiddleware)
 
-	router.Post("/api/shorten/batch", c.createURLShortJSONBatch)
-	router.Post("/api/shorten", c.createURLShortJSON)
-	router.Post("/", c.createURLShortText)
-	router.Get("/api/user/urls", c.getAllURLs)
-	router.Delete("/api/user/urls", c.deleteURLs)
-	router.Get("/{short_url}", c.getlURLOriginal)
 	router.Get("/ping", c.pingDB)
+	router.Get("/api/user/urls", c.getAllURLs)
+	router.Post("/api/shorten/batch", c.createURLShortJSONBatch)
+	router.Delete("/api/user/urls", c.deleteURLs)
+
+	router.Group(func(r chi.Router) {
+		// r.Use(audit.WithAudit(c.Config.AuditFile, c.Config.AuditURL))
+
+		r.Post("/", c.createURLShortText)
+		r.Post("/api/shorten", c.createURLShortJSON)
+		r.Get("/{short_url}", c.getURLOriginal)
+	})
 
 	return router
 }
@@ -78,13 +83,13 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 
 	bodyBytes, err := io.ReadAll(req.Body)
 	if err != nil {
-		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
+		http.Error(res, constants.ReadRequestError, http.StatusBadRequest)
 		return
 	}
 	defer req.Body.Close()
 
 	if len(bodyBytes) == 0 {
-		http.Error(res, "Тело запроса пустое", http.StatusBadRequest)
+		http.Error(res, constants.EmptyBodyError, http.StatusBadRequest)
 		return
 	}
 
@@ -92,12 +97,7 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 
 	var urls []models.URL
 	if err := json.Unmarshal(bodyBytes, &urls); err != nil {
-		http.Error(res, "Неверный формат JSON", http.StatusBadRequest)
-		return
-	}
-
-	if len(urls) == 0 {
-		http.Error(res, "Пустой массив URL", http.StatusBadRequest)
+		http.Error(res, constants.InvalidJSONError, http.StatusBadRequest)
 		return
 	}
 
@@ -111,7 +111,7 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			res.WriteHeader(http.StatusConflict)
 		} else {
-			http.Error(res, "Ошибка создания URL", http.StatusInternalServerError)
+			http.Error(res, constants.InternalError, http.StatusInternalServerError)
 		}
 		return
 	}
@@ -126,13 +126,13 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 
 	bodyResult, err := json.Marshal(createdURLs)
 	if err != nil {
-		http.Error(res, err.Error(), http.StatusInternalServerError)
+		http.Error(res, constants.InvalidJSONError, http.StatusInternalServerError)
 		return
 	}
 
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
-		log.Printf("Ошибка записи ответа: %v", err)
+		http.Error(res, constants.WriteResponseError, http.StatusInternalServerError)
 	}
 }
 
@@ -146,9 +146,13 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	bodyBytes, _ := io.ReadAll(req.Body)
+	bodyBytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(res, constants.ReadRequestError, http.StatusInternalServerError)
+		return
+	}
 	if reflect.DeepEqual(bodyBytes, []byte{}) {
-		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
+		http.Error(res, constants.EmptyBodyError, http.StatusBadRequest)
 		return
 	}
 
@@ -162,21 +166,25 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 		url      models.URL
 	)
 
-	if err := json.Unmarshal(bodyBytes, &urlInOut); err != nil {
-		http.Error(res, err.Error(), http.StatusBadRequest)
+	if err = json.Unmarshal(bodyBytes, &urlInOut); err != nil {
+		http.Error(res, constants.InvalidJSONError, http.StatusBadRequest)
 		return
 	}
 
 	urlInOut.UUID = userID
 
-	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut, c.Config.BaseURL)
+	url, err = c.URLUseCase.CreateURLOrdinary(ctx, urlInOut, c.Config.BaseURL)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	url.Short = addBaseURLToResponse(c.Config.BaseURL, url.Short)
 	urlInOut = models.URLCopyOne(url)
 
-	bodyResult, err2 := json.Marshal(urlInOut)
-	if err2 != nil {
-		http.Error(res, err.Error(), http.StatusInternalServerError)
+	bodyResult, err := json.Marshal(urlInOut)
+	if err != nil {
+		http.Error(res, constants.InvalidJSONError, http.StatusInternalServerError)
 		return
 	}
 
@@ -186,7 +194,7 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
-		log.Fatal(err)
+		http.Error(res, constants.WriteResponseError, http.StatusInternalServerError)
 	}
 }
 
@@ -200,9 +208,12 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	bodyBytes, _ := io.ReadAll(req.Body)
+	bodyBytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(res, constants.ReadRequestError, http.StatusBadRequest)
+	}
 	if reflect.DeepEqual(bodyBytes, []byte{}) {
-		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
+		http.Error(res, constants.EmptyBodyError, http.StatusBadRequest)
 		return
 	}
 
@@ -217,6 +228,10 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 	}
 
 	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn, c.Config.BaseURL)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 
 	res.Header().Set("Content-Type", "text/plain")
@@ -225,7 +240,7 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 
 	_, err = res.Write([]byte(urlOut.Short))
 	if err != nil {
-		log.Fatal(err)
+		http.Error(res, constants.WriteResponseError, http.StatusInternalServerError)
 	}
 }
 
@@ -241,15 +256,19 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 
 	defer req.Body.Close()
 
+	var err error
 	userID := req.Context().Value(constants.UserIDKey).(string)
 
 	urls, err := c.URLUseCase.GetAllURLs(ctx, userID)
 	if err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	var urlsOut []models.URLCopyFour
-	var urlOut models.URLCopyFour
+	var (
+		urlsOut []models.URLCopyFour
+		urlOut  models.URLCopyFour
+	)
 
 	for _, url := range urls {
 		urlOut = models.URLCopyFour(url)
@@ -257,15 +276,14 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 		urlsOut = append(urlsOut, urlOut)
 	}
 
-	// При отсутствии сокращённых пользователем URL хендлер должен отдавать HTTP-статус 204 No Content.
 	if len(urlsOut) == 0 {
-		res.WriteHeader(http.StatusNoContent)
+		http.Error(res, constants.NoContentError, http.StatusNoContent)
 		return
 	}
 
-	bodyResult, err2 := json.Marshal(urlsOut)
-	if err2 != nil {
-		http.Error(res, err.Error(), http.StatusInternalServerError)
+	bodyResult, err := json.Marshal(urlsOut)
+	if err != nil {
+		http.Error(res, constants.InvalidJSONError, http.StatusInternalServerError)
 		return
 	}
 
@@ -273,12 +291,12 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
-		log.Fatal(err)
+		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-// getlURLOriginal - обрабатка HTTP-запроса: тип запроcа - GET, возвращает оригинальный URL.
-func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request) {
+// getURLOriginal - обрабатка HTTP-запроса: тип запроcа - GET, возвращает оригинальный URL.
+func (c *Controller) getURLOriginal(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
 	defer cancel()
 
