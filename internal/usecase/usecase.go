@@ -68,13 +68,7 @@ func (urlUseCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any, 
 		return urlOrdinary, nil
 	}
 
-	if errors.As(err, &PgErr) {
-		switch PgErr.Code {
-		case "23505":
-			urlOrdinary.Short, _ = urlUseCase.Repo.SelectShort(ctx, urlOrdinary.Original)
-		}
-		return urlOrdinary, err
-	} else if errors.Is(err, constants.ErrorURLAlreadyExist) {
+	if errors.As(err, &PgErr) && PgErr.Code == "23505" {
 		urlOrdinary.Short, _ = urlUseCase.Repo.SelectShort(ctx, urlOrdinary.Original)
 		return urlOrdinary, err
 	} else {

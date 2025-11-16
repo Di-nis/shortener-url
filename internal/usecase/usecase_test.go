@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/Di-nis/shortener-url/internal/mocks"
 	"github.com/Di-nis/shortener-url/internal/models"
 	"github.com/Di-nis/shortener-url/internal/service"
@@ -20,16 +22,27 @@ var (
 	urlOriginal2 = "https://www.dynamo.ru/"
 	urlShort2    = "kiFL71uv"
 
-	urlIn = models.URL{
+	urlIn1 = models.URL{
 		UUID:        UUID,
 		Original:    urlOriginal1,
 		DeletedFlag: false,
 	}
+	urlIn2 = models.URL{
+		UUID:        UUID,
+		Original:    urlOriginal2,
+		DeletedFlag: false,
+	}
 
-	url = models.URL{
+	url1 = models.URL{
 		UUID:        UUID,
 		Original:    urlOriginal1,
 		Short:       urlShort1,
+		DeletedFlag: false,
+	}
+	url2 = models.URL{
+		UUID:        UUID,
+		Original:    urlOriginal2,
+		Short:       urlShort2,
 		DeletedFlag: false,
 	}
 
@@ -59,6 +72,9 @@ var (
 		// 	Short:       urlShort2,
 		// 	DeletedFlag: false,
 		// },
+	}
+	err1 = &pgconn.PgError{
+		Code: "23505",
 	}
 )
 
@@ -96,9 +112,11 @@ func getMocks(ctrl *gomock.Controller) *mocks.MockURLRepository {
 	mockRepository := mocks.NewMockURLRepository(ctrl)
 
 	mockRepository.EXPECT().Ping(gomock.Any()).Return(nil)
-	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), url).Return(nil)
+	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), url1).Return(nil)
+	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), url2).Return(err1)
 	mockRepository.EXPECT().InsertBatch(gomock.Any(), urls).Return(nil)
-	mockRepository.EXPECT().SelectShort(gomock.Any(), urlOriginal1).Return(urlShort1, nil)
+	// mockRepository.EXPECT().SelectShort(gomock.Any(), urlOriginal1).Return(urlShort1, nil)
+	mockRepository.EXPECT().SelectShort(gomock.Any(), urlOriginal2).Return(urlShort2, nil)
 	mockRepository.EXPECT().SelectOriginal(gomock.Any(), urlShort1).Return(urlOriginal1, nil)
 	mockRepository.EXPECT().SelectAll(gomock.Any(), UUID).Return(urls, nil)
 	mockRepository.EXPECT().Delete(gomock.Any(), urls).Return(nil)
@@ -132,10 +150,17 @@ func testCreateURLOrdinary(t *testing.T, useCase *URLUseCase) {
 	}{
 		{
 			name:    "создание короткого URL, кейс 1",
-			urlIn:   urlIn,
+			urlIn:   urlIn1,
 			baseURL: baseURL,
-			want:    url,
+			want:    url1,
 			wantErr: nil,
+		},
+		{
+			name:    "создание короткого URL, кейс 2",
+			urlIn:   urlIn2,
+			baseURL: baseURL,
+			want:    url2,
+			wantErr: err1,
 		},
 	}
 	for _, tt := range tests {
