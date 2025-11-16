@@ -333,6 +333,7 @@ func (c *Controller) getURLOriginal(res http.ResponseWriter, req *http.Request) 
 	res.WriteHeader(http.StatusTemporaryRedirect)
 }
 
+// pingDB - пинг БД.
 func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
 	defer cancel()

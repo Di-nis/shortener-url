@@ -52,6 +52,9 @@ func TestCreateAndGetURL(t *testing.T) {
 	t.Run("06_TestdeleteURLs", func(t *testing.T) {
 		testdeleteURLs(t, server)
 	})
+	t.Run("07_testPingDB", func(t *testing.T) {
+		testPingDB(t, server)
+	})
 
 	clearFile(t, fieStoragePath)
 }
@@ -549,6 +552,35 @@ func testdeleteURLs(t *testing.T, server *httptest.Server) {
 		}
 
 		if tt.want.statusCode != 0 {
+			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
+		}
+	}
+}
+
+func testPingDB(t *testing.T, server *httptest.Server) {
+	type want struct {
+		statusCode int
+	}
+	tests := []struct {
+		name   string
+		method string
+		want   want
+	}{
+		{
+			name:   "пинг базы данных",
+			method: http.MethodGet,
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+			},
+		},
+	}
+	for _, tt := range tests {
+		req := resty.New().R()
+		req.Method = tt.method
+		req.URL = server.URL + "/ping"
+
+		resp, err := req.Send()
+		if err == nil {
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
 		}
 	}

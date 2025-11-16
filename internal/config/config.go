@@ -44,6 +44,9 @@ func (a *Config) Parse() {
 	if a.FileStoragePath == "" {
 		a.FileStoragePath = fileStoragePath
 	}
+	if a.DataBaseDSN == "" {
+		a.DataBaseDSN = dataBaseDSN
+	}
 	if a.AuditFile == "" {
 		a.AuditFile = auditFile
 	}
