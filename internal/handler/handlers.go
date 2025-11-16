@@ -59,13 +59,17 @@ func (c *Controller) CreateRouter() http.Handler {
 	router.Post("/api/shorten/batch", c.createURLShortJSONBatch)
 	router.Delete("/api/user/urls", c.deleteURLs)
 
-	router.Group(func(r chi.Router) {
-		// r.Use(audit.WithAudit(c.Config.AuditFile, c.Config.AuditURL))
+	router.Post("/", c.createURLShortText)
+	router.Post("/api/shorten", c.createURLShortJSON)
+	router.Get("/{short_url}", c.getURLOriginal)
 
-		r.Post("/", c.createURLShortText)
-		r.Post("/api/shorten", c.createURLShortJSON)
-		r.Get("/{short_url}", c.getURLOriginal)
-	})
+	// router.Group(func(r chi.Router) {
+	// 	r.Use(audit.WithAudit(c.Config.AuditFile, c.Config.AuditURL))
+
+	// 	r.Post("/", c.createURLShortText)
+	// 	r.Post("/api/shorten", c.createURLShortJSON)
+	// 	r.Get("/{short_url}", c.getURLOriginal)
+	// })
 
 	router.Get("/ping", c.pingDB)
 	return router
