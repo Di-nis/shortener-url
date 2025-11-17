@@ -24,6 +24,8 @@ var (
 	ErrorURLAlreadyDeleted = errors.New("URL already deleted")
 	// нет валидных данных
 	ErrorNoData = errors.New("URL already deleted")
+	// даныне не найдены
+	ErrorNotFound = errors.New("URL not found")
 )
 
 var (

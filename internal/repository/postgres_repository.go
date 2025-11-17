@@ -186,10 +186,13 @@ func (repo *RepoPostgres) Delete(ctx context.Context, urls []models.URL) error {
 	query := `
 	UPDATE urls AS u SET is_deleted = true FROM (VALUES ` + strings.Join(values, ",") + `) AS v(short, user_id) WHERE u.short = v.short AND u.user_id = v.user_id;`
 
-	_, err := repo.db.ExecContext(ctx, query, args...)
-	return err
-	// if err != nil {
-	// 	return fmt.Errorf("path: internal/repository/postgres_repository.go, func Delete(), failed to delete url: %w", err)
-	// }
-	// return nil
+	result, err := repo.db.ExecContext(ctx, query, args...)
+	count, _ := result.RowsAffected()
+	if count == 0 {
+		return fmt.Errorf("path: internal/repository/postgres_repository.go, func Delete(), url not found: %w", constants.ErrorNotFound)
+	}
+	if err != nil {
+		return fmt.Errorf("path: internal/repository/postgres_repository.go, func Delete(), failed to delete url: %w", err)
+	}
+	return nil
 }

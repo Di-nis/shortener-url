@@ -193,6 +193,6 @@ func (urlUseCase *URLUseCase) DeleteURLs(ctx context.Context, urls []models.URL)
 			firstErr = err
 		}
 	}
-	return nil
+	return firstErr
 
 }

@@ -298,11 +298,11 @@ func (c *Controller) getURLOriginal(res http.ResponseWriter, req *http.Request) 
 
 	urlOriginal, err := c.URLUseCase.GetOriginalURL(ctx, URLShort)
 	if err != nil {
-		if err == constants.ErrorURLNotExist {
+		if errors.Is(err, constants.ErrorURLNotExist) {
 			res.WriteHeader(http.StatusNotFound)
 			return
 		}
-		if err == constants.ErrorURLAlreadyDeleted {
+		if errors.Is(err, constants.ErrorURLAlreadyDeleted) {
 			res.WriteHeader(http.StatusGone)
 			return
 		}
