@@ -68,7 +68,13 @@ func (urlUseCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any, 
 		return urlOrdinary, nil
 	}
 
-	if errors.As(err, &PgErr) && PgErr.Code == "23505" {
+	if errors.As(err, &PgErr) {
+		switch PgErr.Code {
+		case "23505":
+			urlOrdinary.Short, _ = urlUseCase.Repo.SelectShort(ctx, urlOrdinary.Original)
+		}
+		return urlOrdinary, err
+	} else if errors.Is(err, constants.ErrorURLAlreadyExist) {
 		urlOrdinary.Short, _ = urlUseCase.Repo.SelectShort(ctx, urlOrdinary.Original)
 		return urlOrdinary, err
 	} else {
@@ -126,6 +132,7 @@ func (urlUseCase *URLUseCase) generator(ctx context.Context, urls []models.URL, 
 	}
 }
 
+// worker - работник.
 func (urlUseCase *URLUseCase) worker(ctx context.Context, urls <-chan models.URL, result chan error) {
 	urlsToDB := make([]models.URL, 0, 100)
 

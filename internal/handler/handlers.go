@@ -55,13 +55,13 @@ func (c *Controller) CreateRouter() http.Handler {
 
 	router.Use(authn.AuthMiddleware, logger.WithLogging, compress.GzipMiddleware)
 
-	router.Get("/api/user/urls", c.getAllURLs)
 	router.Post("/api/shorten/batch", c.createURLShortJSONBatch)
-	router.Delete("/api/user/urls", c.deleteURLs)
-
-	router.Post("/", c.createURLShortText)
 	router.Post("/api/shorten", c.createURLShortJSON)
+	router.Post("/", c.createURLShortText)
+	router.Get("/api/user/urls", c.getAllURLs)
+	router.Delete("/api/user/urls", c.deleteURLs)
 	router.Get("/{short_url}", c.getURLOriginal)
+	router.Get("/ping", c.pingDB)
 
 	// router.Group(func(r chi.Router) {
 	// 	r.Use(audit.WithAudit(c.Config.AuditFile, c.Config.AuditURL))
@@ -71,7 +71,6 @@ func (c *Controller) CreateRouter() http.Handler {
 	// 	r.Get("/{short_url}", c.getURLOriginal)
 	// })
 
-	router.Get("/ping", c.pingDB)
 	return router
 }
 
@@ -150,11 +149,7 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	bodyBytes, err := io.ReadAll(req.Body)
-	if err != nil {
-		http.Error(res, constants.ReadRequestError, http.StatusInternalServerError)
-		return
-	}
+	bodyBytes, _ := io.ReadAll(req.Body)
 	if reflect.DeepEqual(bodyBytes, []byte{}) {
 		http.Error(res, constants.EmptyBodyError, http.StatusBadRequest)
 		return
@@ -170,25 +165,21 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 		url      models.URL
 	)
 
-	if err = json.Unmarshal(bodyBytes, &urlInOut); err != nil {
+	if err := json.Unmarshal(bodyBytes, &urlInOut); err != nil {
 		http.Error(res, constants.InvalidJSONError, http.StatusBadRequest)
 		return
 	}
 
 	urlInOut.UUID = userID
 
-	url, err = c.URLUseCase.CreateURLOrdinary(ctx, urlInOut, c.Config.BaseURL)
-	if err != nil {
-		http.Error(res, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut, c.Config.BaseURL)
 
 	url.Short = addBaseURLToResponse(c.Config.BaseURL, url.Short)
 	urlInOut = models.URLCopyOne(url)
 
-	bodyResult, err := json.Marshal(urlInOut)
-	if err != nil {
-		http.Error(res, constants.InvalidJSONError, http.StatusInternalServerError)
+	bodyResult, err2 := json.Marshal(urlInOut)
+	if err2 != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -212,10 +203,7 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	bodyBytes, err := io.ReadAll(req.Body)
-	if err != nil {
-		http.Error(res, constants.ReadRequestError, http.StatusBadRequest)
-	}
+	bodyBytes, _ := io.ReadAll(req.Body)
 	if reflect.DeepEqual(bodyBytes, []byte{}) {
 		http.Error(res, constants.EmptyBodyError, http.StatusBadRequest)
 		return
@@ -232,10 +220,6 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 	}
 
 	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn, c.Config.BaseURL)
-	if err != nil {
-		http.Error(res, err.Error(), http.StatusInternalServerError)
-		return
-	}
 	urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 
 	res.Header().Set("Content-Type", "text/plain")

@@ -7,18 +7,21 @@ import (
 	"github.com/Di-nis/shortener-url/internal/models"
 )
 
+// WriteCloser - интерфейс для записи в файл.
 type WriteCloser interface {
 	WriteURL(models.URL) error
 	SaveToFile(models.URL) error
 	Close() error
 }
 
+// ReadCloser - интерфейс для чтения из файла.
 type ReadCloser interface {
 	ReadURL() (*models.URL, error)
 	LoadFromFile() ([]models.URL, error)
 	Close() error
 }
 
+// Storage - структура для хранения файлов.
 type Storage struct {
 	Producer WriteCloser
 	Consumer ReadCloser
