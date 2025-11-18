@@ -8,6 +8,7 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
+// Config - структура конфигурации приложения.
 type Config struct {
 	ServerAddress   string `env:"SERVER_ADDRESS"`
 	BaseURL         string `env:"BASE_URL"`
@@ -19,6 +20,7 @@ type Config struct {
 	AuditURL        string `env:"AUDIT_URL"`
 }
 
+// Parse - метод для парсинга конфигурации из переменных окружения и аргументов командной строки.
 func (a *Config) Parse() {
 	// первый приоритет - из переменных окружения
 	_ = godotenv.Load()

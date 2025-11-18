@@ -12,6 +12,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+// GenerateUserID - генерация уникального идентификатора пользователя.
 func GenerateUserID() string {
 	t := time.Now()
 	entropy := rand.New(rand.NewSource(t.UnixNano()))

@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 )
 
+// User - модель пользователя.
 type User struct {
 	ID int
 }
 
+// URL - модель URL.
 type URL struct {
 	UUID        string `db:"user_id"`
 	Short       string `db:"short"`
@@ -16,6 +18,7 @@ type URL struct {
 	DeletedFlag bool `db:"is_deleted"`
 }
 
+// MarshalJSON - метод для сериализации модели URL.
 func (url URL) MarshalJSON() ([]byte, error) {
 	urlAlias := struct {
 		Short    string `json:"short_url"`
@@ -30,6 +33,7 @@ func (url URL) MarshalJSON() ([]byte, error) {
 	return json.Marshal(urlAlias)
 }
 
+// UnmarshalJSON - метод для десериализации модели URL.
 func (url *URL) UnmarshalJSON(data []byte) error {
 	type URLAlias struct {
 		Short    string `json:"-"`
@@ -47,6 +51,7 @@ func (url *URL) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// URLCopyOne - модель URL.
 type URLCopyOne struct {
 	UUID        string
 	Short       string
@@ -55,6 +60,7 @@ type URLCopyOne struct {
 	DeletedFlag bool
 }
 
+// MarshalJSON - метод для сериализации модели URL.
 func (url URLCopyOne) MarshalJSON() ([]byte, error) {
 	urlAlias := struct {
 		Short string `json:"result"`
@@ -65,6 +71,7 @@ func (url URLCopyOne) MarshalJSON() ([]byte, error) {
 	return json.Marshal(urlAlias)
 }
 
+// UnmarshalJSON - метод для десериализации модели URL.
 func (url *URLCopyOne) UnmarshalJSON(data []byte) error {
 	type URLAlias struct {
 		Original string `json:"url"`
@@ -79,6 +86,7 @@ func (url *URLCopyOne) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// URLCopyTwo - модель URL.
 type URLCopyTwo struct {
 	UUID        string `json:"uuid"`
 	Short       string `json:"url_short"`
@@ -87,6 +95,7 @@ type URLCopyTwo struct {
 	DeletedFlag bool   `json:"-"`
 }
 
+// URLCopyThree - модель URL.
 type URLCopyThree struct {
 	UUID        string `json:"-"`
 	Short       string `json:"url_short"`
@@ -95,6 +104,7 @@ type URLCopyThree struct {
 	DeletedFlag bool   `json:"-"`
 }
 
+// URLCopyFour - модель URL.
 type URLCopyFour struct {
 	UUID        string `json:"-"`
 	Short       string `json:"short_url"`
