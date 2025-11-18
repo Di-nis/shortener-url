@@ -9,6 +9,7 @@ import (
 
 	"github.com/Di-nis/shortener-url/internal/constants"
 
+	"github.com/Di-nis/shortener-url/internal/logger"
 	"github.com/Di-nis/shortener-url/internal/models"
 )
 
@@ -53,10 +54,6 @@ func getURL(w http.ResponseWriter, r *http.Request) string {
 	if r.Method == http.MethodGet {
 		url = w.Header().Get("Location")
 	}
-	// 	// TODO как перехватить url
-	// 	// url = ?
-	// 	fmt.Printf("%+v\n", res.Header())
-	// }
 
 	if r.Method == http.MethodPost {
 		bodyBytes, _ := io.ReadAll(r.Body)
@@ -80,7 +77,10 @@ func saveLogsToFile(auditFile, action, userID, url string) {
 		producer, _ := NewProducer(auditFile)
 		defer producer.Close()
 
-		producer.Write(audit)
+		err := producer.Write(audit)
+		if err != nil {
+			logger.Sugar.Info("path: internal/audit/audit.go, func saveLogsToFile(), save to file error", err.Error())
+		}
 	}
 }
 
@@ -91,7 +91,14 @@ func sendLogsToURL(auditURL, action, userID, url string) {
 		data, _ := json.Marshal(&audit)
 
 		client := &http.Client{}
-		client.Post(auditURL, "application/json", bytes.NewBuffer(data))
+		resp, err := client.Post(auditURL, "application/json", bytes.NewBuffer(data))
+		if err != nil {
+			logger.Sugar.Info("path: internal/audit/audit.go, func sendLogsToURL(), request to audit URL error: ", err.Error())
+		}
+		err = resp.Body.Close()
+		if err != nil {
+			logger.Sugar.Info("path: internal/audit/audit.go, func sendLogsToURL(), body closing error", err.Error())
+		}
 	}
 }
 
