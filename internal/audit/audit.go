@@ -3,85 +3,114 @@ package audit
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/Di-nis/shortener-url/internal/constants"
-	"github.com/Di-nis/shortener-url/internal/logger"
+
 	"github.com/Di-nis/shortener-url/internal/models"
 )
 
+// Audit - структура для хранения данных аудита.
+type Audit struct {
+	TS     int64  `json:"ts"`
+	Action string `json:"action"`
+	UserID string `json:"user_id"`
+	URL    string `json:"url"`
+}
+
+// NewAudit - функция для создания нового экземпляра Audit.
+func NewAudit(action, userID, url string) *Audit {
+	return &Audit{
+		TS:     time.Now().Unix(),
+		Action: action,
+		UserID: userID,
+		URL:    url,
+	}
+}
+
+// getAction - получение action.
+func getAction(method string) string {
+	switch method {
+	case http.MethodGet:
+		return "follow"
+	case http.MethodPost:
+		return "shorten"
+	default:
+		return ""
+	}
+}
+
+// getURL - получение url.
+func getURL(w http.ResponseWriter, r *http.Request) string {
+	var (
+		urlInOut models.URLCopyOne
+		err      error
+		url      string
+	)
+
+	if r.Method == http.MethodGet {
+		url = w.Header().Get("Location")
+	}
+	// 	// TODO как перехватить url
+	// 	// url = ?
+	// 	fmt.Printf("%+v\n", res.Header())
+	// }
+
+	if r.Method == http.MethodPost {
+		bodyBytes, _ := io.ReadAll(r.Body)
+
+		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+		err = json.Unmarshal(bodyBytes, &urlInOut)
+		if err != nil {
+			url = string(bodyBytes)
+		} else {
+			url = urlInOut.Original
+		}
+	}
+	return url
+}
+
+// saveLogsToFile - сохранение логов в файл.
+func saveLogsToFile(auditFile, action, userID, url string) {
+	if auditFile != "" {
+		audit := NewAudit(action, userID, url)
+		producer, _ := NewProducer(auditFile)
+		defer producer.Close()
+
+		producer.Write(audit)
+	}
+}
+
+// sendLogsToURL - отправка логов на URL.
+func sendLogsToURL(auditURL, action, userID, url string) {
+	if auditURL != "" {
+		audit := NewAudit(action, userID, url)
+		data, _ := json.Marshal(&audit)
+
+		client := &http.Client{}
+		client.Post(auditURL, "application/json", bytes.NewBuffer(data))
+	}
+}
+
+// WithAudit - middleware-аудит.
 func WithAudit(auditFile, auditURL string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-			reqTemp := req
-			var (
-				action, userID, url string
-				urlInOut            models.URLCopyOne
-			)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var action, userID, url string
 
-			// определение поля user_id
-			userID = req.Context().Value(constants.UserIDKey).(string)
-			body := reqTemp.Body
-			method := reqTemp.Method
+			userID = r.Context().Value(constants.UserIDKey).(string)
+			action = getAction(r.Method)
 
-			// определение поля action
-			switch method {
-			case http.MethodGet:
-				action = "follow"
-			case http.MethodPost:
-				action = "shorten"
-			}
+			next.ServeHTTP(w, r)
 
-			if method == http.MethodGet {
-				url = res.Header().Get("Location")
-				// TODO как перехватить url
-				// url = ?
-				fmt.Printf("%+v\n", res.Header())
-			}
-			if method == http.MethodPost {
-				bodyBytes, err := io.ReadAll(body)
-				if err != nil {
-					logger.Sugar.Errorf("path: internal/audit/audit.go, errror - %w", err)
-				}
-				err = json.Unmarshal(bodyBytes, &urlInOut)
-				if err != nil {
-					url = string(bodyBytes)
-				} else {
-					url = urlInOut.Original
-				}
-			}
+			url = getURL(w, r)
 
-			if auditFile != "" {
-				audit := models.NewAudit(action, userID, url)
-				producer, err := NewProducer(auditFile)
-				if err != nil {
-					logger.Sugar.Errorf("path: internal/audit/audit.go, errror - %w", err)
-				}
-				defer producer.Close()
+			saveLogsToFile(auditFile, action, userID, url)
+			sendLogsToURL(auditURL, action, userID, url)
 
-				err = producer.Write(audit)
-				if err != nil {
-					logger.Sugar.Errorf("path: internal/audit/audit.go, errror - %w", err)
-				}
-			}
-
-			if auditURL != "" {
-				audit := models.NewAudit(action, userID, url)
-				data, err := json.Marshal(&audit)
-				if err != nil {
-					logger.Sugar.Errorf("path: internal/audit/audit.go, errror - %w", err)
-				}
-
-				client := &http.Client{}
-				response, err := client.Post(auditURL, "application/json", bytes.NewBuffer(data))
-				if err != nil {
-					logger.Sugar.Errorf("path: internal/audit/audit.go, errror - %w", err)
-				}
-				defer response.Body.Close()
-			}
-			next.ServeHTTP(res, req)
 		})
 	}
 }

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"reflect"
 
-	// "github.com/Di-nis/shortener-url/internal/audit"
+	"github.com/Di-nis/shortener-url/internal/audit"
 	"github.com/Di-nis/shortener-url/internal/authn"
 	"github.com/Di-nis/shortener-url/internal/compress"
 	"github.com/Di-nis/shortener-url/internal/config"
@@ -56,20 +56,17 @@ func (c *Controller) CreateRouter() http.Handler {
 	router.Use(authn.AuthMiddleware, logger.WithLogging, compress.GzipMiddleware)
 
 	router.Post("/api/shorten/batch", c.createURLShortJSONBatch)
-	router.Post("/api/shorten", c.createURLShortJSON)
-	router.Post("/", c.createURLShortText)
 	router.Get("/api/user/urls", c.getAllURLs)
 	router.Delete("/api/user/urls", c.deleteURLs)
-	router.Get("/{short_url}", c.getURLOriginal)
 	router.Get("/ping", c.pingDB)
 
-	// router.Group(func(r chi.Router) {
-	// 	r.Use(audit.WithAudit(c.Config.AuditFile, c.Config.AuditURL))
+	router.Group(func(r chi.Router) {
+		r.Use(audit.WithAudit(c.Config.AuditFile, c.Config.AuditURL))
 
-	// 	r.Post("/", c.createURLShortText)
-	// 	r.Post("/api/shorten", c.createURLShortJSON)
-	// 	r.Get("/{short_url}", c.getURLOriginal)
-	// })
+		r.Post("/", c.createURLShortText)
+		r.Post("/api/shorten", c.createURLShortJSON)
+		r.Get("/{short_url}", c.getURLOriginal)
+	})
 
 	return router
 }

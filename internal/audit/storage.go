@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
-
-	"github.com/Di-nis/shortener-url/internal/models"
 )
 
 // Producer - структура для записи данных в файл.
@@ -27,7 +25,7 @@ func NewProducer(filename string) (*Producer, error) {
 }
 
 // Write - запись данных в файл.
-func (p *Producer) Write(audit *models.Audit) error {
+func (p *Producer) Write(audit *Audit) error {
 	data, err := json.Marshal(&audit)
 	if err != nil {
 		return err

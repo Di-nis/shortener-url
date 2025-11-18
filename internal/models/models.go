@@ -2,7 +2,6 @@ package models
 
 import (
 	"encoding/json"
-	"time"
 )
 
 type User struct {
@@ -102,22 +101,4 @@ type URLCopyFour struct {
 	Original    string `json:"original_url"`
 	URLID       string `json:"-"`
 	DeletedFlag bool   `json:"-"`
-}
-
-// Audit - структура для хранения данных аудита.
-type Audit struct {
-	TS     int64  `json:"ts"`
-	Action string `json:"action"`
-	UserID string `json:"user_id"`
-	URL    string `json:"url"`
-}
-
-// NewAudit - функция для создания нового экземпляра Audit.
-func NewAudit(action, userID, url string) *Audit {
-	return &Audit{
-		TS:     time.Now().Unix(),
-		Action: action,
-		UserID: userID,
-		URL:    url,
-	}
 }
