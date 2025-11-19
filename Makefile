@@ -43,4 +43,8 @@ autotests15:
 		-database-dsn=postgresql://postgres:postgres@localhost:5432/shortener?sslmode=disable \
 		-source-path=.
 
+autotests17:
+	shortenertest -test.v -test.run=^TestIteration17$ \
+		-source-path=. \
+
 all:  statictests autotests1 autotests9 autotests10 autotests11 autotests12 autotests13 autotests14 autotests15

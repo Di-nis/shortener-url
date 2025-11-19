@@ -20,6 +20,7 @@ func GenerateUserID() string {
 	return id
 }
 
+// GetUserID - получение идентификатора пользователя из токена.
 func GetUserID(tokenString, secretKey string) string {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims,

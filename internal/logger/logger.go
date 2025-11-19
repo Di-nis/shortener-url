@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// Log *zap.Logger.
 var Log *zap.Logger = zap.NewNop()
 
 // Sugar *zap.SugaredLogger.

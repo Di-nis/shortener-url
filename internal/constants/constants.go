@@ -7,6 +7,7 @@ import (
 
 type contextKey string
 
+// Для использования при создании хэша URL.
 const (
 	HashLength            = 8
 	TokenExp              = time.Hour * 3
@@ -28,6 +29,7 @@ var (
 	ErrorNotFound = errors.New("URL not found")
 )
 
+// Тексты ошибок.
 var (
 	ReadRequestError   = "unable to read request body"
 	EmptyBodyError     = "request body is empty"

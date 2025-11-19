@@ -6,6 +6,7 @@ import (
 	"github.com/Di-nis/shortener-url/internal/service"
 )
 
+// Run - запуск приложения.
 func Run() error {
 	cfg, err := initConfigAndLogger()
 	if err != nil {
