@@ -10,15 +10,18 @@ import (
 
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/constants"
+	"github.com/Di-nis/shortener-url/internal/mocks"
+	"github.com/Di-nis/shortener-url/internal/models"
 	"github.com/Di-nis/shortener-url/internal/repository"
 	"github.com/Di-nis/shortener-url/internal/service"
 	"github.com/Di-nis/shortener-url/internal/usecase"
 	"github.com/go-resty/resty/v2"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestCreateAndGetURL(t *testing.T) {
+func TestHandler(t *testing.T) {
 	fieStoragePath := "../../database_test.log"
 
 	t.Setenv("SERVER_ADDRESS", "localhost:8080")
@@ -584,4 +587,111 @@ func testPingDB(t *testing.T, server *httptest.Server) {
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
 		}
 	}
+}
+
+var (
+	bodyJSONBatch = `[{"correlation_id": "1","original_url":"https://www.khl.ru/"},{"correlation_id":"2","original_url":"https://www.dynamo.ru/"}]`
+	bodyJSON      = `{"url":"https://maximum.ru/"}`
+	bodyText      = `https://maximum.ru/`
+	urlOriginal1  = "https://www.khl.ru/"
+	urlShort1     = "lJJpJV7h"
+)
+
+func BenchmarkHandler(b *testing.B) {
+	ctrl := gomock.NewController(b)
+	defer ctrl.Finish()
+
+	cfg := &config.Config{
+		BaseURL: "http://localhost:8080",
+	}
+	useCase := getBenchmarkMocks(ctrl)
+	handler := NewСontroller(useCase, cfg)
+	router := handler.CreateRouter()
+	server := httptest.NewServer(router)
+
+	client := resty.New()
+
+	b.Run("createURLShortJSONBatch", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			req := client.R()
+			req.Body = bodyJSONBatch
+			req.Method = http.MethodPost
+			req.URL = server.URL + "/api/shorten/batch"
+
+			req.Send()
+		}
+	})
+
+	b.Run("createURLShortJSON", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			req := client.R()
+			req.Body = bodyJSON
+			req.Method = http.MethodPost
+			req.URL = server.URL + "/api/shorten"
+			req.Send()
+		}
+	})
+
+	b.Run("createURLShortText", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			req := client.R()
+			req.Body = bodyText
+			req.Method = http.MethodPost
+			req.URL = server.URL
+			req.Send()
+		}
+	})
+
+	b.Run("getAllURLs", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			req := client.R()
+			req.Body = bodyText
+			req.Method = http.MethodGet
+			req.URL = server.URL + "/api/user/urls"
+			req.Send()
+		}
+	})
+
+	b.Run("getURLOriginal", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			req := client.R()
+			req.Body = bodyText
+			req.Method = http.MethodGet
+			req.URL = server.URL + "/" + urlShort1
+			req.Send()
+		}
+	})
+
+	b.Run("pingDB", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			req := client.R()
+			req.Method = http.MethodGet
+			req.URL = server.URL + "/ping"
+
+			req.Send()
+		}
+
+	})
+
+	b.Run("deleteURLs", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			req := client.R()
+			req.Body = bodyText
+			req.Method = http.MethodDelete
+			req.URL = server.URL + "/api/user/urls"
+			req.Send()
+		}
+	})
+}
+
+func getBenchmarkMocks(ctrl *gomock.Controller) *mocks.MockURLUseCase {
+	mock := mocks.NewMockURLUseCase(ctrl)
+
+	mock.EXPECT().Ping(gomock.Any()).Return(nil).AnyTimes()
+	mock.EXPECT().CreateURLOrdinary(gomock.Any(), gomock.Any()).Return(models.URL{}, nil).AnyTimes()
+	mock.EXPECT().CreateURLBatch(gomock.Any(), gomock.AssignableToTypeOf([]models.URL{})).Return([]models.URL{}, nil).AnyTimes()
+	mock.EXPECT().GetOriginalURL(gomock.Any(), urlShort1).Return(urlOriginal1, nil).AnyTimes()
+	mock.EXPECT().GetAllURLs(gomock.Any(), gomock.AssignableToTypeOf("")).Return([]models.URL{}, nil).AnyTimes()
+	mock.EXPECT().DeleteURLs(gomock.Any(), gomock.AssignableToTypeOf([]models.URL{})).Return(nil).AnyTimes()
+	return mock
 }

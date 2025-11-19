@@ -56,7 +56,7 @@ func (urlUseCase *URLUseCase) Ping(ctx context.Context) error {
 }
 
 // CreateURLOrdinary - создание короткого URL и его запись в базу данных.
-func (urlUseCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any, baseURL string) (models.URL, error) {
+func (urlUseCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any) (models.URL, error) {
 	var PgErr *pgconn.PgError
 
 	urlOrdinary := convertToSingleType(urlIn)
@@ -83,7 +83,7 @@ func (urlUseCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any, 
 }
 
 // CreateURLBatch - создание короткого URL и его запись в базу данных.
-func (urlUseCase *URLUseCase) CreateURLBatch(ctx context.Context, urls []models.URL, baseURL string) ([]models.URL, error) {
+func (urlUseCase *URLUseCase) CreateURLBatch(ctx context.Context, urls []models.URL) ([]models.URL, error) {
 	var idxTemp int
 
 	for idx, url := range urls {

@@ -36,33 +36,33 @@ func (m *MockURLUseCase) EXPECT() *MockURLUseCaseMockRecorder {
 }
 
 // CreateURLBatch mocks base method.
-func (m *MockURLUseCase) CreateURLBatch(arg0 context.Context, arg1 []models.URL, arg2 string) ([]models.URL, error) {
+func (m *MockURLUseCase) CreateURLBatch(arg0 context.Context, arg1 []models.URL) ([]models.URL, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateURLBatch", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "CreateURLBatch", arg0, arg1)
 	ret0, _ := ret[0].([]models.URL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateURLBatch indicates an expected call of CreateURLBatch.
-func (mr *MockURLUseCaseMockRecorder) CreateURLBatch(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockURLUseCaseMockRecorder) CreateURLBatch(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateURLBatch", reflect.TypeOf((*MockURLUseCase)(nil).CreateURLBatch), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateURLBatch", reflect.TypeOf((*MockURLUseCase)(nil).CreateURLBatch), arg0, arg1)
 }
 
 // CreateURLOrdinary mocks base method.
-func (m *MockURLUseCase) CreateURLOrdinary(arg0 context.Context, arg1 interface{}, arg2 string) (models.URL, error) {
+func (m *MockURLUseCase) CreateURLOrdinary(arg0 context.Context, arg1 interface{}) (models.URL, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateURLOrdinary", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "CreateURLOrdinary", arg0, arg1)
 	ret0, _ := ret[0].(models.URL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateURLOrdinary indicates an expected call of CreateURLOrdinary.
-func (mr *MockURLUseCaseMockRecorder) CreateURLOrdinary(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockURLUseCaseMockRecorder) CreateURLOrdinary(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateURLOrdinary", reflect.TypeOf((*MockURLUseCase)(nil).CreateURLOrdinary), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateURLOrdinary", reflect.TypeOf((*MockURLUseCase)(nil).CreateURLOrdinary), arg0, arg1)
 }
 
 // DeleteURLs mocks base method.

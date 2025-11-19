@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/http/pprof"
 	"reflect"
 
 	"github.com/Di-nis/shortener-url/internal/audit"
@@ -14,7 +15,6 @@ import (
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/logger"
 	"github.com/Di-nis/shortener-url/internal/models"
-	"github.com/Di-nis/shortener-url/internal/usecase"
 
 	"github.com/go-chi/chi/v5"
 
@@ -28,8 +28,8 @@ import (
 // URLUseCase - интерфейс для бизнес-логики.
 type URLUseCase interface {
 	Ping(context.Context) error
-	CreateURLOrdinary(context.Context, any, string) (models.URL, error)
-	CreateURLBatch(context.Context, []models.URL, string) ([]models.URL, error)
+	CreateURLOrdinary(context.Context, any) (models.URL, error)
+	CreateURLBatch(context.Context, []models.URL) ([]models.URL, error)
 	GetOriginalURL(context.Context, string) (string, error)
 	GetAllURLs(context.Context, string) ([]models.URL, error)
 	DeleteURLs(context.Context, []models.URL) error
@@ -37,12 +37,12 @@ type URLUseCase interface {
 
 // Controller - структура HTTP-хендлера.
 type Controller struct {
-	URLUseCase *usecase.URLUseCase
+	URLUseCase URLUseCase
 	Config     *config.Config
 }
 
 // NewСontroller - создание структуры Controller.
-func NewСontroller(urlUseCase *usecase.URLUseCase, config *config.Config) *Controller {
+func NewСontroller(urlUseCase URLUseCase, config *config.Config) *Controller {
 	return &Controller{
 		URLUseCase: urlUseCase,
 		Config:     config,
@@ -67,6 +67,12 @@ func (c *Controller) CreateRouter() http.Handler {
 		r.Post("/api/shorten", c.createURLShortJSON)
 		r.Get("/{short_url}", c.getURLOriginal)
 	})
+
+	router.Mount("/debug/pprof/", http.HandlerFunc(pprof.Index)) // для перенаправления
+	router.Get("/debug/pprof/cmdline", pprof.Cmdline)
+	router.Get("/debug/pprof/profile", pprof.Profile)
+	router.Get("/debug/pprof/symbol", pprof.Symbol)
+	router.Get("/debug/pprof/trace", pprof.Trace)
 
 	return router
 }
@@ -105,7 +111,7 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 		urls[i].UUID = userID
 	}
 
-	createdURLs, err := c.URLUseCase.CreateURLBatch(ctx, urls, c.Config.BaseURL)
+	createdURLs, err := c.URLUseCase.CreateURLBatch(ctx, urls)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -169,7 +175,7 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 
 	urlInOut.UUID = userID
 
-	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut, c.Config.BaseURL)
+	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut)
 
 	url.Short = addBaseURLToResponse(c.Config.BaseURL, url.Short)
 	urlInOut = models.URLCopyOne(url)
@@ -216,7 +222,7 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 		UUID:     userID,
 	}
 
-	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn, c.Config.BaseURL)
+	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn)
 	urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 
 	res.Header().Set("Content-Type", "text/plain")
