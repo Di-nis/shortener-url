@@ -1,3 +1,4 @@
+// Package constants реализывает константы и переменные для кастомных ошибок.
 package constants
 
 import (

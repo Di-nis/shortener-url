@@ -1,3 +1,4 @@
+// Package usecase реализовывает связь между слоями handler, service и repository приложения.
 package usecase
 
 import (

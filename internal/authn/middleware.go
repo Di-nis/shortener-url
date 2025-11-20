@@ -1,3 +1,4 @@
+// Package authn предоставляет middleware для авторизации и аутентификации пользователей.
 package authn
 
 import (

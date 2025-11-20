@@ -1,3 +1,4 @@
+// Package logger предоставляет абстракцию для логирования.
 package logger
 
 import (

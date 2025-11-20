@@ -1,3 +1,4 @@
+// Package models - реализация моделей.
 package models
 
 import (

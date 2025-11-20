@@ -1,3 +1,4 @@
+// Package compress предоставляет middleware для сжатия ответов.
 package compress
 
 import (

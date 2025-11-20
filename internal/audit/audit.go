@@ -1,3 +1,5 @@
+// Package audit предоставляет middleware для аудита запросов.
+// Реализации аудита: в файл, удаленный сервер.
 package audit
 
 import (
