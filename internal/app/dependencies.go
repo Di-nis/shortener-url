@@ -16,15 +16,15 @@ import (
 
 // initConfigAndLogger - инициализация конфигурации и логгера.
 func initConfigAndLogger() (*config.Config, error) {
-	config := &config.Config{}
-	config.Parse()
+	cfg := config.NewConfig()
+	cfg.Parse()
 
 	var err error
-	if err = logger.Initialize(config.LogLevel); err != nil {
+	if err = logger.Initialize(cfg.LogLevel); err != nil {
 		return nil, err
 	}
-	logger.Log.Info("Запуска сервера", zap.String("address", config.ServerAddress))
-	return config, nil
+	logger.Log.Info("Запуска сервера", zap.String("address", cfg.ServerAddress))
+	return cfg, nil
 }
 
 // initRepoPostgres - инициализация репозитория для работы с PostgreSQL.
@@ -82,5 +82,5 @@ func setupRouter(cfg *config.Config, repo usecase.URLRepository, svc *service.Se
 	urlUseCase := usecase.NewURLUseCase(repo, svc)
 
 	controller := handler.NewСontroller(urlUseCase, cfg)
-	return controller.CreateRouter()
+	return controller.SetupRouter()
 }

@@ -51,13 +51,29 @@ func NewСontroller(urlUseCase URLUseCase, config *config.Config) *Controller {
 	}
 }
 
-// CreateRouter - маршрутизация запросов.
-func (c *Controller) CreateRouter() http.Handler {
+// SetupRouter - маршрутизация запросов.
+func (c *Controller) SetupRouter() http.Handler {
 	router := chi.NewRouter()
 
-	router.Use(authn.AuthMiddleware, logger.WithLogging, compress.GzipMiddleware)
+	router.Use(logger.WithLogging, compress.GzipMiddleware)
+	c.UseAuthMiddleware(router)
 
-	router.Post("/api/shorten/batch", c.createURLShortJSONBatch)
+	c.RegisterRoutes(router)
+	return router
+}
+
+// UseAuthMiddleware - использование middleware для аутентификации.
+func (c *Controller) UseAuthMiddleware(router *chi.Mux) {
+	if c.Config.UseMockAuth {
+		router.Use(authn.MockAuthMiddleware)
+	} else {
+		router.Use(authn.AuthMiddleware)
+	}
+}
+
+// RegisterRoutes - регистрация маршрутов.
+func (c *Controller) RegisterRoutes(router *chi.Mux) {
+	router.Post("/api/shorten/batch", c.CreateURLShortJSONBatch)
 	router.Get("/api/user/urls", c.getAllURLs)
 	router.Delete("/api/user/urls", c.deleteURLs)
 	router.Get("/ping", c.pingDB)
@@ -70,17 +86,16 @@ func (c *Controller) CreateRouter() http.Handler {
 		r.Get("/{short_url}", c.getURLOriginal)
 	})
 
-	router.Mount("/debug/pprof/", http.HandlerFunc(pprof.Index)) // для перенаправления
+	// pprof
+	router.Mount("/debug/pprof/", http.HandlerFunc(pprof.Index))
 	router.Get("/debug/pprof/cmdline", pprof.Cmdline)
 	router.Get("/debug/pprof/profile", pprof.Profile)
 	router.Get("/debug/pprof/symbol", pprof.Symbol)
 	router.Get("/debug/pprof/trace", pprof.Trace)
-
-	return router
 }
 
 // createURLShortJSON - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
-func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.Request) {
+func (c *Controller) CreateURLShortJSONBatch(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
 	defer cancel()
 
@@ -322,23 +337,6 @@ func (c *Controller) getURLOriginal(res http.ResponseWriter, req *http.Request) 
 	res.WriteHeader(http.StatusTemporaryRedirect)
 }
 
-// pingDB - пинг БД.
-func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
-	defer cancel()
-
-	if err := c.URLUseCase.Ping(ctx); err != nil {
-		switch {
-		case errors.Is(err, constants.ErrorMethodNotAllowed):
-			res.WriteHeader(http.StatusMethodNotAllowed)
-		default:
-			res.WriteHeader(http.StatusInternalServerError)
-		}
-	} else {
-		res.WriteHeader(http.StatusOK)
-	}
-}
-
 // deleteURLs - удаление сокращенных URL.
 func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -374,4 +372,21 @@ func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	res.WriteHeader(http.StatusAccepted)
+}
+
+// pingDB - пинг БД.
+func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
+	defer cancel()
+
+	if err := c.URLUseCase.Ping(ctx); err != nil {
+		switch {
+		case errors.Is(err, constants.ErrorMethodNotAllowed):
+			res.WriteHeader(http.StatusMethodNotAllowed)
+		default:
+			res.WriteHeader(http.StatusInternalServerError)
+		}
+	} else {
+		res.WriteHeader(http.StatusOK)
+	}
 }

@@ -20,6 +20,12 @@ type Config struct {
 	JWTSecret       string `env:"JWT_SECRET"`
 	AuditFile       string `env:"AUDIT_FILE"`
 	AuditURL        string `env:"AUDIT_URL"`
+	UseMockAuth     bool
+}
+
+// NewConfig - функция для создания конфигурации.
+func NewConfig() *Config {
+	return &Config{}
 }
 
 // Parse - метод для парсинга конфигурации из переменных окружения и аргументов командной строки.
