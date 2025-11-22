@@ -95,11 +95,12 @@ func sendLogsToURL(auditURL, action, userID, url string) {
 		client := &http.Client{}
 		resp, err := client.Post(auditURL, "application/json", bytes.NewBuffer(data))
 		if err != nil {
-			logger.Sugar.Info("path: internal/audit/audit.go, func sendLogsToURL(), request to audit URL error: ", err.Error())
+			logger.Sugar.Errorf("path: internal/audit/audit.go, func sendLogsToURL(), request to audit URL error", err)
+			return
 		}
 		err = resp.Body.Close()
 		if err != nil {
-			logger.Sugar.Info("path: internal/audit/audit.go, func sendLogsToURL(), body closing error", err.Error())
+			logger.Sugar.Errorf("path: internal/audit/audit.go, func sendLogsToURL(), body closing error", err)
 		}
 	}
 }
