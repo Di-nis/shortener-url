@@ -36,7 +36,7 @@ func (m *MockURLRepository) EXPECT() *MockURLRepositoryMockRecorder {
 }
 
 // Delete mocks base method.
-func (m *MockURLRepository) Delete(arg0 context.Context, arg1 []models.URL) error {
+func (m *MockURLRepository) Delete(arg0 context.Context, arg1 []models.URLBase) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -50,7 +50,7 @@ func (mr *MockURLRepositoryMockRecorder) Delete(arg0, arg1 interface{}) *gomock.
 }
 
 // InsertBatch mocks base method.
-func (m *MockURLRepository) InsertBatch(arg0 context.Context, arg1 []models.URL) error {
+func (m *MockURLRepository) InsertBatch(arg0 context.Context, arg1 []models.URLBase) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertBatch", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -64,7 +64,7 @@ func (mr *MockURLRepositoryMockRecorder) InsertBatch(arg0, arg1 interface{}) *go
 }
 
 // InsertOrdinary mocks base method.
-func (m *MockURLRepository) InsertOrdinary(arg0 context.Context, arg1 models.URL) error {
+func (m *MockURLRepository) InsertOrdinary(arg0 context.Context, arg1 models.URLBase) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertOrdinary", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -92,10 +92,10 @@ func (mr *MockURLRepositoryMockRecorder) Ping(arg0 interface{}) *gomock.Call {
 }
 
 // SelectAll mocks base method.
-func (m *MockURLRepository) SelectAll(arg0 context.Context, arg1 string) ([]models.URL, error) {
+func (m *MockURLRepository) SelectAll(arg0 context.Context, arg1 string) ([]models.URLBase, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SelectAll", arg0, arg1)
-	ret0, _ := ret[0].([]models.URL)
+	ret0, _ := ret[0].([]models.URLBase)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

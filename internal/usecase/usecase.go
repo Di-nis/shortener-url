@@ -16,25 +16,25 @@ import (
 // URLRepository - интерфейс для базы данных.
 type URLRepository interface {
 	Ping(context.Context) error
-	InsertBatch(context.Context, []models.URL) error
-	InsertOrdinary(context.Context, models.URL) error
+	InsertBatch(context.Context, []models.URLBase) error
+	InsertOrdinary(context.Context, models.URLBase) error
 	SelectOriginal(context.Context, string) (string, error)
 	SelectShort(context.Context, string) (string, error)
-	SelectAll(context.Context, string) ([]models.URL, error)
-	Delete(context.Context, []models.URL) error
+	SelectAll(context.Context, string) ([]models.URLBase, error)
+	Delete(context.Context, []models.URLBase) error
 }
 
 // convertToSingleType - приведение к единому типу данных.
-func convertToSingleType(urlIn any) models.URL {
-	url1, ok1 := urlIn.(models.URL)
+func convertToSingleType(urlIn any) models.URLBase {
+	url1, ok1 := urlIn.(models.URLBase)
 	if ok1 {
 		return url1
 	}
-	url2, ok2 := urlIn.(models.URLCopyOne)
+	url2, ok2 := urlIn.(models.URLJSON)
 	if ok2 {
-		return models.URL(url2)
+		return models.URLBase(url2)
 	}
-	return models.URL{}
+	return models.URLBase{}
 }
 
 // URLUseCase - структура создания короткого и получение оригинального url.
@@ -57,7 +57,7 @@ func (urlUseCase *URLUseCase) Ping(ctx context.Context) error {
 }
 
 // CreateURLOrdinary - создание короткого URL и его запись в базу данных.
-func (urlUseCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any) (models.URL, error) {
+func (urlUseCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any) (models.URLBase, error) {
 	var PgErr *pgconn.PgError
 
 	urlOrdinary := convertToSingleType(urlIn)
@@ -84,7 +84,7 @@ func (urlUseCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any) 
 }
 
 // CreateURLBatch - создание короткого URL и его запись в базу данных.
-func (urlUseCase *URLUseCase) CreateURLBatch(ctx context.Context, urls []models.URL) ([]models.URL, error) {
+func (urlUseCase *URLUseCase) CreateURLBatch(ctx context.Context, urls []models.URLBase) ([]models.URLBase, error) {
 	var idxTemp int
 
 	for idx, url := range urls {
@@ -114,7 +114,7 @@ func (urlUseCase *URLUseCase) GetOriginalURL(ctx context.Context, shortURL strin
 }
 
 // GetAllURLs - получение всех когда-либо сокращенных пользователем URL.
-func (urlUseCase *URLUseCase) GetAllURLs(ctx context.Context, userID string) ([]models.URL, error) {
+func (urlUseCase *URLUseCase) GetAllURLs(ctx context.Context, userID string) ([]models.URLBase, error) {
 	urls, err := urlUseCase.Repo.SelectAll(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -123,7 +123,7 @@ func (urlUseCase *URLUseCase) GetAllURLs(ctx context.Context, userID string) ([]
 }
 
 // generator - генерирует сообщения в канал.
-func (urlUseCase *URLUseCase) generator(ctx context.Context, urls []models.URL, inChan chan models.URL) {
+func (urlUseCase *URLUseCase) generator(ctx context.Context, urls []models.URLBase, inChan chan models.URLBase) {
 	for _, url := range urls {
 		select {
 		case <-ctx.Done():
@@ -134,8 +134,8 @@ func (urlUseCase *URLUseCase) generator(ctx context.Context, urls []models.URL, 
 }
 
 // worker - работник.
-func (urlUseCase *URLUseCase) worker(ctx context.Context, urls <-chan models.URL, result chan error) {
-	urlsToDB := make([]models.URL, 0, 100)
+func (urlUseCase *URLUseCase) worker(ctx context.Context, urls <-chan models.URLBase, result chan error) {
+	urlsToDB := make([]models.URLBase, 0, 100)
 
 	for {
 		select {
@@ -164,9 +164,9 @@ func (urlUseCase *URLUseCase) worker(ctx context.Context, urls <-chan models.URL
 }
 
 // DeleteURLs - удаление сокращенных URL.
-func (urlUseCase *URLUseCase) DeleteURLs(ctx context.Context, urls []models.URL) error {
+func (urlUseCase *URLUseCase) DeleteURLs(ctx context.Context, urls []models.URLBase) error {
 	const numWorkers = 3
-	inChan := make(chan models.URL, 1024)
+	inChan := make(chan models.URLBase, 1024)
 	resultChan := make(chan error, numWorkers)
 	var wg sync.WaitGroup
 

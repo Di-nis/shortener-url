@@ -27,8 +27,8 @@ func NewProducer(filename string) (*Producer, error) {
 }
 
 // WriteURL - запись данных в файл.
-func (p *Producer) WriteURL(url models.URL) error {
-	urlTypeTwo := models.URLCopyTwo(url)
+func (p *Producer) WriteURL(url models.URLBase) error {
+	urlTypeTwo := models.URLStorage(url)
 	data, err := json.Marshal(&urlTypeTwo)
 	if err != nil {
 		return err
@@ -51,7 +51,7 @@ func (p *Producer) Close() error {
 }
 
 // SaveToFile - сохранение данных в файл.
-func (p *Producer) SaveToFile(urlData models.URL) error {
+func (p *Producer) SaveToFile(urlData models.URLBase) error {
 	err := p.WriteURL(urlData)
 	if err != nil {
 		return err
@@ -80,15 +80,15 @@ func NewConsumer(filename string) (*Consumer, error) {
 }
 
 // ReadURL - чтение данных из файла.
-func (c *Consumer) ReadURL() (*models.URL, error) {
+func (c *Consumer) ReadURL() (*models.URLBase, error) {
 	data := c.scanner.Bytes()
 
-	urlsTypeTwo := models.URLCopyTwo{}
+	urlsTypeTwo := models.URLStorage{}
 	err := json.Unmarshal(data, &urlsTypeTwo)
 	if err != nil {
 		return nil, err
 	}
-	urls := models.URL(urlsTypeTwo)
+	urls := models.URLBase(urlsTypeTwo)
 
 	return &urls, nil
 }
@@ -99,8 +99,8 @@ func (c *Consumer) Close() error {
 }
 
 // LoadFromFile - загрузка данных из файла.
-func (c *Consumer) LoadFromFile() ([]models.URL, error) {
-	URLArray := make([]models.URL, 0)
+func (c *Consumer) LoadFromFile() ([]models.URLBase, error) {
+	URLArray := make([]models.URLBase, 0)
 
 	for c.scanner.Scan() {
 		urlData, err := c.ReadURL()

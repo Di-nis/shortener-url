@@ -78,7 +78,7 @@ func (repo *RepoPostgres) Migrations() error {
 }
 
 // InsertOrdinary - добавление ординарного URL в БД.
-func (repo *RepoPostgres) InsertOrdinary(ctx context.Context, url models.URL) error {
+func (repo *RepoPostgres) InsertOrdinary(ctx context.Context, url models.URLBase) error {
 	query := "INSERT INTO urls (original, short, user_id) VALUES ($1, $2, $3)"
 	_, err := repo.db.ExecContext(ctx, query, url.Original, url.Short, url.UUID)
 	if err != nil {
@@ -88,7 +88,7 @@ func (repo *RepoPostgres) InsertOrdinary(ctx context.Context, url models.URL) er
 }
 
 // InsertBatch - добавление нескольких URL в БД.
-func (repo *RepoPostgres) InsertBatch(ctx context.Context, urls []models.URL) error {
+func (repo *RepoPostgres) InsertBatch(ctx context.Context, urls []models.URLBase) error {
 	tx, err := repo.db.Begin()
 	if err != nil {
 		return err
@@ -127,7 +127,7 @@ func (repo *RepoPostgres) SelectOriginal(ctx context.Context, urlShort string) (
 	query := "SELECT original, is_deleted FROM urls WHERE short = $1"
 	row := repo.db.QueryRowContext(ctx, query, urlShort)
 
-	var url models.URL
+	var url models.URLBase
 	err := row.Scan(&url.Original, &url.DeletedFlag)
 
 	if url.DeletedFlag {
@@ -141,7 +141,7 @@ func (repo *RepoPostgres) SelectOriginal(ctx context.Context, urlShort string) (
 }
 
 // GetAllURLs - получение всех когда-либо сокращенных пользователем URL.
-func (repo *RepoPostgres) SelectAll(ctx context.Context, userID string) ([]models.URL, error) {
+func (repo *RepoPostgres) SelectAll(ctx context.Context, userID string) ([]models.URLBase, error) {
 	stmt, err := repo.db.PrepareContext(ctx, "SELECT original, short FROM urls WHERE user_id = $1")
 	if err != nil {
 		return nil, fmt.Errorf("path: internal/repository/postgres_repository.go, func SelectAll(), failed to prepare statement: %w", err)
@@ -155,10 +155,10 @@ func (repo *RepoPostgres) SelectAll(ctx context.Context, userID string) ([]model
 	if err != nil {
 		return nil, fmt.Errorf("path: internal/repository/postgres_repository.go, func SelectAll(), failed to get urls: %w", err)
 	}
-	urls := make([]models.URL, 0, 20)
+	urls := make([]models.URLBase, 0, 20)
 
 	for rows.Next() {
-		var url models.URL
+		var url models.URLBase
 		err = rows.Scan(&url.Original, &url.Short)
 		if err != nil {
 			return nil, fmt.Errorf("path: internal/repository/postgres_repository.go, func SelectAll(), failed to scan url: %w", err)
@@ -171,7 +171,7 @@ func (repo *RepoPostgres) SelectAll(ctx context.Context, userID string) ([]model
 }
 
 // Delete - удаление URL из БД.
-func (repo *RepoPostgres) Delete(ctx context.Context, urls []models.URL) error {
+func (repo *RepoPostgres) Delete(ctx context.Context, urls []models.URLBase) error {
 	if len(urls) == 0 {
 		return constants.ErrorNoData
 	}

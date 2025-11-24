@@ -30,11 +30,11 @@ import (
 // URLUseCase - интерфейс для бизнес-логики.
 type URLUseCase interface {
 	Ping(context.Context) error
-	CreateURLOrdinary(context.Context, any) (models.URL, error)
-	CreateURLBatch(context.Context, []models.URL) ([]models.URL, error)
+	CreateURLOrdinary(context.Context, any) (models.URLBase, error)
+	CreateURLBatch(context.Context, []models.URLBase) ([]models.URLBase, error)
 	GetOriginalURL(context.Context, string) (string, error)
-	GetAllURLs(context.Context, string) ([]models.URL, error)
-	DeleteURLs(context.Context, []models.URL) error
+	GetAllURLs(context.Context, string) ([]models.URLBase, error)
+	DeleteURLs(context.Context, []models.URLBase) error
 }
 
 // Controller - структура HTTP-хендлера.
@@ -118,7 +118,7 @@ func (c *Controller) CreateURLShortJSONBatch(res http.ResponseWriter, req *http.
 
 	userID := req.Context().Value(constants.UserIDKey).(string)
 
-	var urls []models.URL
+	var urls []models.URLBase
 	if err := json.Unmarshal(bodyBytes, &urls); err != nil {
 		http.Error(res, constants.InvalidJSONError, http.StatusBadRequest)
 		return
@@ -181,8 +181,8 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 	userID := req.Context().Value(constants.UserIDKey).(string)
 
 	var (
-		urlInOut models.URLCopyOne
-		url      models.URL
+		urlInOut models.URLJSON
+		url      models.URLBase
 	)
 
 	if err := json.Unmarshal(bodyBytes, &urlInOut); err != nil {
@@ -195,7 +195,7 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut)
 
 	url.Short = addBaseURLToResponse(c.Config.BaseURL, url.Short)
-	urlInOut = models.URLCopyOne(url)
+	urlInOut = models.URLJSON(url)
 
 	bodyResult, err2 := json.Marshal(urlInOut)
 	if err2 != nil {
@@ -234,7 +234,7 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 	// Получение userID через middleware Auth
 	userID := req.Context().Value(constants.UserIDKey).(string)
 
-	urlIn := models.URL{
+	urlIn := models.URLBase{
 		Original: string(bodyBytes),
 		UUID:     userID,
 	}
@@ -274,12 +274,12 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 	}
 
 	var (
-		urlsOut []models.URLCopyFour
-		urlOut  models.URLCopyFour
+		urlsOut []models.URLGetAll
+		urlOut  models.URLGetAll
 	)
 
 	for _, url := range urls {
-		urlOut = models.URLCopyFour(url)
+		urlOut = models.URLGetAll(url)
 		urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 		urlsOut = append(urlsOut, urlOut)
 	}
@@ -351,7 +351,7 @@ func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
 	userID := req.Context().Value(constants.UserIDKey).(string)
 
 	var shorts []string
-	urls := []models.URL{}
+	urls := []models.URLBase{}
 
 	if err := json.NewDecoder(req.Body).Decode(&shorts); err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
@@ -361,7 +361,7 @@ func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
 	for _, short := range shorts {
-		urls = append(urls, models.URL{
+		urls = append(urls, models.URLBase{
 			Short: short,
 			UUID:  userID,
 		})

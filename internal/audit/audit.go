@@ -48,7 +48,7 @@ func getAction(method string) string {
 // getURL - получение url.
 func getURL(w http.ResponseWriter, r *http.Request) string {
 	var (
-		urlInOut models.URLCopyOne
+		urlInOut models.URLJSON
 		err      error
 		url      string
 	)

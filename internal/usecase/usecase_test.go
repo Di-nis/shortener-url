@@ -23,42 +23,42 @@ var (
 	urlOriginal3 = "https://chatgpt.com/"
 	urlShort3    = "826drChJ"
 
-	urlIn1 = models.URL{
+	urlIn1 = models.URLBase{
 		UUID:        UUID,
 		Original:    urlOriginal1,
 		DeletedFlag: false,
 	}
-	urlIn2 = models.URL{
+	urlIn2 = models.URLBase{
 		UUID:        UUID,
 		Original:    urlOriginal2,
 		DeletedFlag: false,
 	}
-	urlIn3 = models.URL{
+	urlIn3 = models.URLBase{
 		UUID:        UUID,
 		Original:    urlOriginal3,
 		DeletedFlag: false,
 	}
 
-	url1 = models.URL{
+	url1 = models.URLBase{
 		UUID:        UUID,
 		Original:    urlOriginal1,
 		Short:       urlShort1,
 		DeletedFlag: false,
 	}
-	url2 = models.URL{
+	url2 = models.URLBase{
 		UUID:        UUID,
 		Original:    urlOriginal2,
 		Short:       urlShort2,
 		DeletedFlag: false,
 	}
-	url3 = models.URL{
+	url3 = models.URLBase{
 		UUID:        UUID,
 		Original:    urlOriginal3,
 		Short:       urlShort3,
 		DeletedFlag: false,
 	}
 
-	urlsIn = []models.URL{
+	urlsIn = []models.URLBase{
 		{
 			UUID:        UUID,
 			Original:    urlOriginal1,
@@ -66,7 +66,7 @@ var (
 		},
 	}
 
-	urls = []models.URL{
+	urls = []models.URLBase{
 		{
 			UUID:        UUID,
 			Original:    urlOriginal1,
@@ -147,7 +147,7 @@ func testCreateURLOrdinary(t *testing.T, useCase *URLUseCase) {
 	tests := []struct {
 		name    string
 		urlIn   any
-		want    models.URL
+		want    models.URLBase
 		wantErr error
 	}{
 		{
@@ -183,8 +183,8 @@ func testCreateURLOrdinary(t *testing.T, useCase *URLUseCase) {
 func testCreateURLBatch(t *testing.T, useCase *URLUseCase) {
 	tests := []struct {
 		name    string
-		urls    []models.URL
-		want    []models.URL
+		urls    []models.URLBase
+		want    []models.URLBase
 		wantErr error
 	}{
 		{
@@ -235,7 +235,7 @@ func testGetAllURLs(t *testing.T, useCase *URLUseCase) {
 	tests := []struct {
 		name    string
 		userID  string
-		want    []models.URL
+		want    []models.URLBase
 		wantErr error
 	}{
 		{
@@ -260,7 +260,7 @@ func testGetAllURLs(t *testing.T, useCase *URLUseCase) {
 func testDeleteURLs(t *testing.T, useCase *URLUseCase) {
 	tests := []struct {
 		name    string
-		urls    []models.URL
+		urls    []models.URLBase
 		wantErr error
 	}{
 		{
