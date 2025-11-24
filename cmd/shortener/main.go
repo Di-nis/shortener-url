@@ -1,3 +1,4 @@
+// Package main — точка входа приложения.
 package main
 
 import (

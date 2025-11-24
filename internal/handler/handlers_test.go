@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Di-nis/shortener-url/internal/config"
+	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/repository"
 	"github.com/Di-nis/shortener-url/internal/service"
 	"github.com/Di-nis/shortener-url/internal/usecase"
@@ -17,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCreateAndGetURL(t *testing.T) {
+func TestHandler(t *testing.T) {
 	fieStoragePath := "../../database_test.log"
 
 	t.Setenv("SERVER_ADDRESS", "localhost:8080")
@@ -51,6 +52,9 @@ func TestCreateAndGetURL(t *testing.T) {
 	t.Run("06_TestdeleteURLs", func(t *testing.T) {
 		testdeleteURLs(t, server)
 	})
+	t.Run("07_testPingDB", func(t *testing.T) {
+		testPingDB(t, server)
+	})
 
 	clearFile(t, fieStoragePath)
 }
@@ -65,7 +69,7 @@ func clearFile(t *testing.T, path string) {
 }
 
 func initHandler() (http.Handler, error) {
-	cfg := &config.Config{}
+	cfg := config.NewConfig()
 	cfg.Parse()
 
 	consumer, err := repository.NewConsumer(cfg.FileStoragePath)
@@ -88,7 +92,7 @@ func initHandler() (http.Handler, error) {
 
 	urlUseCase := usecase.NewURLUseCase(repo, svc)
 	controller := NewСontroller(urlUseCase, cfg)
-	router := controller.CreateRouter()
+	router := controller.SetupRouter()
 	return router, nil
 }
 
@@ -119,7 +123,7 @@ func testCreateURLShortJSONBatch(t *testing.T, server *httptest.Server) {
 		},
 		{
 			name:        "GET, тест 2",
-			body:        `[{"correlation_id": "1","original_url":""sport-express.ru""}]`,
+			body:        `[{"correlation_id":"1","original_url":""sport-express.ru""}]`,
 			method:      http.MethodGet,
 			contentType: "text/plain",
 			want: want{
@@ -202,7 +206,7 @@ func testCreateURLFromText(t *testing.T, server *httptest.Server) {
 			acceptEncoding:  "",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				body:        "Не удалось прочитать тело запроса\n",
+				body:        fmt.Sprintf("%s%s", constants.EmptyBodyError, "\n"),
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
@@ -267,7 +271,7 @@ func testCreateURLFromJSON(t *testing.T, server *httptest.Server) {
 			contentType: "application/json",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				body:        "Не удалось прочитать тело запроса\n",
+				body:        constants.EmptyBodyError,
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
@@ -278,7 +282,7 @@ func testCreateURLFromJSON(t *testing.T, server *httptest.Server) {
 			contentType: "application/json",
 			want: want{
 				statusCode:  http.StatusBadRequest,
-				body:        "json: cannot unmarshal number into Go struct field",
+				body:        constants.InvalidJSONError,
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
@@ -495,7 +499,7 @@ func testdeleteURLs(t *testing.T, server *httptest.Server) {
 	t.Run("Предварительное создание данных", func(t *testing.T) {
 		req := resty.New().R()
 		req.Method = http.MethodPost
-		req.Body = `{"correlation_id": "1","original_url":"https://maximum.ru/"},{"correlation_id":"2","original_url":"https://radioultra.ru/"}`
+		req.Body = `{"correlation_id":"1","original_url":"https://maximum.ru/"},{"correlation_id":"2","original_url":"https://radioultra.ru/"}`
 		req.URL = fmt.Sprintf("%s/api/shorten/batch", server.URL)
 
 		resp, err := req.Send()
@@ -548,6 +552,35 @@ func testdeleteURLs(t *testing.T, server *httptest.Server) {
 		}
 
 		if tt.want.statusCode != 0 {
+			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
+		}
+	}
+}
+
+func testPingDB(t *testing.T, server *httptest.Server) {
+	type want struct {
+		statusCode int
+	}
+	tests := []struct {
+		name   string
+		method string
+		want   want
+	}{
+		{
+			name:   "пинг базы данных",
+			method: http.MethodGet,
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+			},
+		},
+	}
+	for _, tt := range tests {
+		req := resty.New().R()
+		req.Method = tt.method
+		req.URL = server.URL + "/ping"
+
+		resp, err := req.Send()
+		if err == nil {
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
 		}
 	}

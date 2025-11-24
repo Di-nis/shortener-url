@@ -1,3 +1,5 @@
+// Package app. Инициализация зависимостей
+// конфигурации, инфраструктурных компонентов и запуск серверв.
 package app
 
 import (
@@ -6,6 +8,7 @@ import (
 	"github.com/Di-nis/shortener-url/internal/service"
 )
 
+// Run - запуск приложения.
 func Run() error {
 	cfg, err := initConfigAndLogger()
 	if err != nil {

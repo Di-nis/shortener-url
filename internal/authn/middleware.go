@@ -1,3 +1,4 @@
+// Package authn предоставляет middleware для авторизации и аутентификации пользователей.
 package authn
 
 import (
@@ -54,6 +55,14 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(req.Context(), constants.UserIDKey, userID)
+		next.ServeHTTP(res, req.WithContext(ctx))
+	})
+}
+
+// MockAuthMiddleware - аутентификация пользователя.
+func MockAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		ctx := context.WithValue(req.Context(), constants.UserIDKey, "01KA3YRQCWTNAJEGR5Z30PH6VT")
 		next.ServeHTTP(res, req.WithContext(ctx))
 	})
 }

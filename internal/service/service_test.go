@@ -35,3 +35,21 @@ func TestService_ShortHash(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkServiceMethods(b *testing.B) {
+	service := NewService()
+
+	b.Run("base62Encode", func(b *testing.B) {
+		url, length := "https://practicum.yandex.ru", constants.HashLength
+		for i := 0; i < b.N; i++ {
+			service.ShortHash(url, length)
+		}
+	})
+
+	b.Run("ShortHash", func(b *testing.B) {
+		url, length := "https://practicum.yandex.ru", constants.HashLength
+		for i := 0; i < b.N; i++ {
+			service.ShortHash(url, length)
+		}
+	})
+}

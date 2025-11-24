@@ -7,18 +7,21 @@ import (
 	"github.com/Di-nis/shortener-url/internal/models"
 )
 
+// WriteCloser - интерфейс для записи в файл.
 type WriteCloser interface {
 	WriteURL(models.URL) error
 	SaveToFile(models.URL) error
 	Close() error
 }
 
+// ReadCloser - интерфейс для чтения из файла.
 type ReadCloser interface {
 	ReadURL() (*models.URL, error)
 	LoadFromFile() ([]models.URL, error)
 	Close() error
 }
 
+// Storage - структура для хранения файлов.
 type Storage struct {
 	Producer WriteCloser
 	Consumer ReadCloser
@@ -40,12 +43,13 @@ func NewRepoFile(fileStoragePath string, storage *Storage) *RepoFile {
 	}
 }
 
+// Ping - проверка соединения с базой данных.
 func (repo *RepoFile) Ping(ctx context.Context) error {
 	return constants.ErrorMethodNotAllowed
 }
 
-// CreateBatch - сохранение URL в базу данных.
-func (repo *RepoFile) CreateBatch(ctx context.Context, urls []models.URL) error {
+// InsertBatch - сохранение нескольких URL в базу данных.
+func (repo *RepoFile) InsertBatch(ctx context.Context, urls []models.URL) error {
 	for _, url := range urls {
 		for _, urlDB := range repo.OriginalAndShortURL {
 			if urlDB.Original == url.Original {
@@ -65,8 +69,8 @@ func (repo *RepoFile) CreateBatch(ctx context.Context, urls []models.URL) error 
 	return nil
 }
 
-// CreateOrdinary - сохранение URL в базу данных.
-func (repo *RepoFile) CreateOrdinary(ctx context.Context, url models.URL) error {
+// InsertOrdinary - сохранение ординарного URL в базу данных.
+func (repo *RepoFile) InsertOrdinary(ctx context.Context, url models.URL) error {
 	for _, urlDB := range repo.OriginalAndShortURL {
 		if urlDB.Original == url.Original {
 			return constants.ErrorURLAlreadyExist
@@ -85,8 +89,8 @@ func (repo *RepoFile) CreateOrdinary(ctx context.Context, url models.URL) error 
 
 }
 
-// GetOriginalURL - получение оригинального URL из базы данных.
-func (repo *RepoFile) GetOriginalURL(ctx context.Context, shortURL string) (string, error) {
+// SelectOriginal - получение оригинального URL из базы данных.
+func (repo *RepoFile) SelectOriginal(ctx context.Context, shortURL string) (string, error) {
 	for _, url := range repo.OriginalAndShortURL {
 		if url.Short == shortURL && url.DeletedFlag {
 			return "", constants.ErrorURLAlreadyDeleted
@@ -97,8 +101,8 @@ func (repo *RepoFile) GetOriginalURL(ctx context.Context, shortURL string) (stri
 	return "", constants.ErrorURLNotExist
 }
 
-// GetShortURL - получение оригинального URL из базы данных.
-func (repo *RepoFile) GetShortURL(ctx context.Context, originalURL string) (string, error) {
+// SelectShort - получение оригинального URL из базы данных.
+func (repo *RepoFile) SelectShort(ctx context.Context, originalURL string) (string, error) {
 	for _, url := range repo.OriginalAndShortURL {
 		if url.Original == originalURL {
 			return url.Short, nil
@@ -107,8 +111,8 @@ func (repo *RepoFile) GetShortURL(ctx context.Context, originalURL string) (stri
 	return "", constants.ErrorURLNotExist
 }
 
-// // GetAllURLs - получение всех когда-либо сокращенных пользователем URL.
-func (repo *RepoFile) GetAllURLs(ctx context.Context, userID string) ([]models.URL, error) {
+// SelectAll - получение всех когда-либо сокращенных пользователем URL.
+func (repo *RepoFile) SelectAll(ctx context.Context, userID string) ([]models.URL, error) {
 	var urls []models.URL
 
 	for _, url := range repo.OriginalAndShortURL {
@@ -119,7 +123,8 @@ func (repo *RepoFile) GetAllURLs(ctx context.Context, userID string) ([]models.U
 	return urls, nil
 }
 
-func (repo *RepoFile) DeleteURL(ctx context.Context, urls []models.URL) error {
+// Delete - простановка флага удаления.
+func (repo *RepoFile) Delete(ctx context.Context, urls []models.URL) error {
 	for _, url := range urls {
 		for i, urlDB := range repo.OriginalAndShortURL {
 			if urlDB.Short == url.Short && urlDB.UUID == url.UUID && !urlDB.DeletedFlag {

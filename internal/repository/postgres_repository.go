@@ -1,3 +1,6 @@
+// Package repository содержать инфраструктурные реализации доступа к данным.
+// Реализации: PostgreSQL, хранение в памяти приложения и файловое хранилище.
+// Сервисный слой работает только с интерфейсами, не зная деталей реализации.
 package repository
 
 import (
@@ -18,10 +21,12 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// RepoPostgres - репозиторий для работы с БД Postgres.
 type RepoPostgres struct {
 	db *sql.DB
 }
 
+// NewRepoPostgres - конструктор репозитория.
 func NewRepoPostgres(dataSourceName string) (*RepoPostgres, error) {
 	db, err := sql.Open("pgx", dataSourceName)
 	if err != nil {
@@ -37,47 +42,53 @@ func NewRepoPostgres(dataSourceName string) (*RepoPostgres, error) {
 	}, nil
 }
 
+// Ping - проверка соединения с БД.
 func (repo *RepoPostgres) Ping(ctx context.Context) error {
 	return repo.db.PingContext(ctx)
 }
 
+// Close - закрытие соединения с БД.
 func (repo *RepoPostgres) Close() error {
 	return repo.db.Close()
 }
 
+// Migrations - миграции БД.
 func (repo *RepoPostgres) Migrations() error {
-	driver, err1 := postgres.WithInstance(repo.db, &postgres.Config{})
-	if err1 != nil {
-		return err1
+	var err error
+	driver, err := postgres.WithInstance(repo.db, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("path: internal/repository/postgres_repository.go, func Migrations(), failed create driver: %w", err)
 	}
 
-	m, err2 := migrate.NewWithDatabaseInstance(
+	m, err := migrate.NewWithDatabaseInstance(
 		"file:migrations",
 		"postgres",
 		driver)
-	if err2 != nil {
-		return err2
+	if err != nil {
+		return fmt.Errorf("path: internal/repository/postgres_repository.go, func Migrations(), failed new Migrate Instance: %w", err)
 	}
 
-	err3 := m.Up()
-	if errors.Is(err3, migrate.ErrNoChange) {
+	err = m.Up()
+	if errors.Is(err, migrate.ErrNoChange) {
 		return nil
-	} else if err3 != nil {
-		return err3
+	} else if err != nil {
+		return fmt.Errorf("path: internal/repository/postgres_repository.go, func Migrations(), failed make migrations: %w", err)
 	}
 	return nil
 }
 
-func (repo *RepoPostgres) CreateOrdinary(ctx context.Context, url models.URL) error {
+// InsertOrdinary - добавление ординарного URL в БД.
+func (repo *RepoPostgres) InsertOrdinary(ctx context.Context, url models.URL) error {
 	query := "INSERT INTO urls (original, short, user_id) VALUES ($1, $2, $3)"
 	_, err := repo.db.ExecContext(ctx, query, url.Original, url.Short, url.UUID)
 	if err != nil {
-		return err
+		return fmt.Errorf("path: internal/repository/postgres_repository.go, func InsertOrdinary(), failed to insert url: %w", err)
 	}
 	return nil
 }
 
-func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL) error {
+// InsertBatch - добавление нескольких URL в БД.
+func (repo *RepoPostgres) InsertBatch(ctx context.Context, urls []models.URL) error {
 	tx, err := repo.db.Begin()
 	if err != nil {
 		return err
@@ -86,31 +97,33 @@ func (repo *RepoPostgres) CreateBatch(ctx context.Context, urls []models.URL) er
 
 	stmt, err := repo.db.PrepareContext(ctx, "INSERT INTO urls (original, short, user_id) VALUES ($1, $2, $3)")
 	if err != nil {
-		return err
+		return fmt.Errorf("path: internal/repository/postgres_repository.go, func InsertBatch(), failed to prepare statement: %w", err)
 	}
 
 	for _, url := range urls {
 		_, err = stmt.ExecContext(ctx, url.Original, url.Short, url.UUID)
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("path: internal/repository/postgres_repository.go, func InsertBatch(), failed to insert urls: %w", err)
 	}
 	return tx.Commit()
 }
 
-func (repo *RepoPostgres) GetShortURL(ctx context.Context, urlOriginal string) (string, error) {
+// SelectShort - получение короткого URL по оригинальному.
+func (repo *RepoPostgres) SelectShort(ctx context.Context, urlOriginal string) (string, error) {
 	query := "SELECT short FROM urls WHERE original = $1"
 	row := repo.db.QueryRowContext(ctx, query, urlOriginal)
 
 	var urlShort string
 	err := row.Scan(&urlShort)
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
-		return "", constants.ErrorURLNotExist
+		return "", fmt.Errorf("path: internal/repository/postgres_repository.go, func SelectShort(): %w", constants.ErrorURLNotExist)
 	}
 	return urlShort, nil
 }
 
-func (repo *RepoPostgres) GetOriginalURL(ctx context.Context, urlShort string) (string, error) {
+// SelectOriginal - получение оригинального URL по короткому.
+func (repo *RepoPostgres) SelectOriginal(ctx context.Context, urlShort string) (string, error) {
 	query := "SELECT original, is_deleted FROM urls WHERE short = $1"
 	row := repo.db.QueryRowContext(ctx, query, urlShort)
 
@@ -118,29 +131,29 @@ func (repo *RepoPostgres) GetOriginalURL(ctx context.Context, urlShort string) (
 	err := row.Scan(&url.Original, &url.DeletedFlag)
 
 	if url.DeletedFlag {
-		return "", constants.ErrorURLAlreadyDeleted
+		return "", fmt.Errorf("path: internal/repository/postgres_repository.go, func SelectOriginal(): %w", constants.ErrorURLAlreadyDeleted)
 	}
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
-		return "", constants.ErrorURLNotExist
+		return "", fmt.Errorf("path: internal/repository/postgres_repository.go, func SelectOriginal(): %w", constants.ErrorURLNotExist)
 	}
 
 	return url.Original, nil
 }
 
 // GetAllURLs - получение всех когда-либо сокращенных пользователем URL.
-func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID string) ([]models.URL, error) {
+func (repo *RepoPostgres) SelectAll(ctx context.Context, userID string) ([]models.URL, error) {
 	stmt, err := repo.db.PrepareContext(ctx, "SELECT original, short FROM urls WHERE user_id = $1")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("path: internal/repository/postgres_repository.go, func SelectAll(), failed to prepare statement: %w", err)
 	}
 	defer stmt.Close()
 
 	rows, err := stmt.QueryContext(ctx, userID)
 	if rows.Err() != nil {
-		return nil, err
+		return nil, fmt.Errorf("path: internal/repository/postgres_repository.go, func SelectAll(), row iteration failed: %w", err)
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("path: internal/repository/postgres_repository.go, func SelectAll(), failed to get urls: %w", err)
 	}
 	urls := make([]models.URL, 0, 20)
 
@@ -148,19 +161,17 @@ func (repo *RepoPostgres) GetAllURLs(ctx context.Context, userID string) ([]mode
 		var url models.URL
 		err = rows.Scan(&url.Original, &url.Short)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("path: internal/repository/postgres_repository.go, func SelectAll(), failed to scan url: %w", err)
 		}
 
 		urls = append(urls, url)
 	}
 
-	if err != nil {
-		return nil, err
-	}
 	return urls, nil
 }
 
-func (repo *RepoPostgres) DeleteURL(ctx context.Context, urls []models.URL) error {
+// Delete - удаление URL из БД.
+func (repo *RepoPostgres) Delete(ctx context.Context, urls []models.URL) error {
 	if len(urls) == 0 {
 		return constants.ErrorNoData
 	}
@@ -178,6 +189,13 @@ func (repo *RepoPostgres) DeleteURL(ctx context.Context, urls []models.URL) erro
 	query := `
 	UPDATE urls AS u SET is_deleted = true FROM (VALUES ` + strings.Join(values, ",") + `) AS v(short, user_id) WHERE u.short = v.short AND u.user_id = v.user_id;`
 
-	_, err := repo.db.ExecContext(ctx, query, args...)
-	return err
+	result, err := repo.db.ExecContext(ctx, query, args...)
+	count, _ := result.RowsAffected()
+	if count == 0 {
+		return fmt.Errorf("path: internal/repository/postgres_repository.go, func Delete(), url not found: %w", constants.ErrorNotFound)
+	}
+	if err != nil {
+		return fmt.Errorf("path: internal/repository/postgres_repository.go, func Delete(), failed to delete url: %w", err)
+	}
+	return nil
 }

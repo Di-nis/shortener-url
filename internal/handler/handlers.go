@@ -1,20 +1,22 @@
+// Package handler предоставляет HTTP-транспорт для приложения, реализуя обработчики
+// маршрутов и преобразуя сетевые запросы в вызовы сервисного слоя.
 package handler
 
 import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"net/http"
+	"net/http/pprof"
 	"reflect"
 
+	"github.com/Di-nis/shortener-url/internal/audit"
 	"github.com/Di-nis/shortener-url/internal/authn"
 	"github.com/Di-nis/shortener-url/internal/compress"
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/logger"
 	"github.com/Di-nis/shortener-url/internal/models"
-	"github.com/Di-nis/shortener-url/internal/usecase"
 
 	"github.com/go-chi/chi/v5"
 
@@ -25,39 +27,75 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+// URLUseCase - интерфейс для бизнес-логики.
+type URLUseCase interface {
+	Ping(context.Context) error
+	CreateURLOrdinary(context.Context, any) (models.URL, error)
+	CreateURLBatch(context.Context, []models.URL) ([]models.URL, error)
+	GetOriginalURL(context.Context, string) (string, error)
+	GetAllURLs(context.Context, string) ([]models.URL, error)
+	DeleteURLs(context.Context, []models.URL) error
+}
+
 // Controller - структура HTTP-хендлера.
 type Controller struct {
-	URLUseCase *usecase.URLUseCase
+	URLUseCase URLUseCase
 	Config     *config.Config
 }
 
 // NewСontroller - создание структуры Controller.
-func NewСontroller(urlUseCase *usecase.URLUseCase, config *config.Config) *Controller {
+func NewСontroller(urlUseCase URLUseCase, config *config.Config) *Controller {
 	return &Controller{
 		URLUseCase: urlUseCase,
 		Config:     config,
 	}
 }
 
-// CreateRouter - маршрутизация запросов.
-func (c *Controller) CreateRouter() http.Handler {
+// SetupRouter - маршрутизация запросов.
+func (c *Controller) SetupRouter() http.Handler {
 	router := chi.NewRouter()
 
-	router.Use(authn.AuthMiddleware, logger.WithLogging, compress.GzipMiddleware)
+	router.Use(logger.WithLogging, compress.GzipMiddleware)
+	c.UseAuthMiddleware(router)
 
-	router.Post("/api/shorten/batch", c.createURLShortJSONBatch)
-	router.Post("/api/shorten", c.createURLShortJSON)
-	router.Post("/", c.createURLShortText)
-	router.Get("/api/user/urls", c.getAllURLs)
-	router.Delete("/api/user/urls", c.deleteURLs)
-	router.Get("/{short_url}", c.getlURLOriginal)
-	router.Get("/ping", c.pingDB)
-
+	c.RegisterRoutes(router)
 	return router
 }
 
+// UseAuthMiddleware - использование middleware для аутентификации.
+func (c *Controller) UseAuthMiddleware(router *chi.Mux) {
+	if c.Config.UseMockAuth {
+		router.Use(authn.MockAuthMiddleware)
+	} else {
+		router.Use(authn.AuthMiddleware)
+	}
+}
+
+// RegisterRoutes - регистрация маршрутов.
+func (c *Controller) RegisterRoutes(router *chi.Mux) {
+	router.Post("/api/shorten/batch", c.CreateURLShortJSONBatch)
+	router.Get("/api/user/urls", c.getAllURLs)
+	router.Delete("/api/user/urls", c.deleteURLs)
+	router.Get("/ping", c.pingDB)
+
+	router.Group(func(r chi.Router) {
+		r.Use(audit.WithAudit(c.Config.AuditFile, c.Config.AuditURL))
+
+		r.Post("/", c.createURLShortText)
+		r.Post("/api/shorten", c.createURLShortJSON)
+		r.Get("/{short_url}", c.getURLOriginal)
+	})
+
+	// pprof
+	router.Mount("/debug/pprof/", http.HandlerFunc(pprof.Index))
+	router.Get("/debug/pprof/cmdline", pprof.Cmdline)
+	router.Get("/debug/pprof/profile", pprof.Profile)
+	router.Get("/debug/pprof/symbol", pprof.Symbol)
+	router.Get("/debug/pprof/trace", pprof.Trace)
+}
+
 // createURLShortJSON - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
-func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.Request) {
+func (c *Controller) CreateURLShortJSONBatch(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
 	defer cancel()
 
@@ -68,13 +106,13 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 
 	bodyBytes, err := io.ReadAll(req.Body)
 	if err != nil {
-		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
+		http.Error(res, constants.ReadRequestError, http.StatusBadRequest)
 		return
 	}
 	defer req.Body.Close()
 
 	if len(bodyBytes) == 0 {
-		http.Error(res, "Тело запроса пустое", http.StatusBadRequest)
+		http.Error(res, constants.EmptyBodyError, http.StatusBadRequest)
 		return
 	}
 
@@ -82,12 +120,7 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 
 	var urls []models.URL
 	if err := json.Unmarshal(bodyBytes, &urls); err != nil {
-		http.Error(res, "Неверный формат JSON", http.StatusBadRequest)
-		return
-	}
-
-	if len(urls) == 0 {
-		http.Error(res, "Пустой массив URL", http.StatusBadRequest)
+		http.Error(res, constants.InvalidJSONError, http.StatusBadRequest)
 		return
 	}
 
@@ -95,13 +128,13 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 		urls[i].UUID = userID
 	}
 
-	createdURLs, err := c.URLUseCase.CreateURLBatch(ctx, urls, c.Config.BaseURL)
+	createdURLs, err := c.URLUseCase.CreateURLBatch(ctx, urls)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			res.WriteHeader(http.StatusConflict)
 		} else {
-			http.Error(res, "Ошибка создания URL", http.StatusInternalServerError)
+			http.Error(res, constants.InternalError, http.StatusInternalServerError)
 		}
 		return
 	}
@@ -116,13 +149,13 @@ func (c *Controller) createURLShortJSONBatch(res http.ResponseWriter, req *http.
 
 	bodyResult, err := json.Marshal(createdURLs)
 	if err != nil {
-		http.Error(res, err.Error(), http.StatusInternalServerError)
+		http.Error(res, constants.InvalidJSONError, http.StatusInternalServerError)
 		return
 	}
 
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
-		log.Printf("Ошибка записи ответа: %v", err)
+		http.Error(res, constants.WriteResponseError, http.StatusInternalServerError)
 	}
 }
 
@@ -138,7 +171,7 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 
 	bodyBytes, _ := io.ReadAll(req.Body)
 	if reflect.DeepEqual(bodyBytes, []byte{}) {
-		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
+		http.Error(res, constants.EmptyBodyError, http.StatusBadRequest)
 		return
 	}
 
@@ -153,13 +186,13 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 	)
 
 	if err := json.Unmarshal(bodyBytes, &urlInOut); err != nil {
-		http.Error(res, err.Error(), http.StatusBadRequest)
+		http.Error(res, constants.InvalidJSONError, http.StatusBadRequest)
 		return
 	}
 
 	urlInOut.UUID = userID
 
-	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut, c.Config.BaseURL)
+	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut)
 
 	url.Short = addBaseURLToResponse(c.Config.BaseURL, url.Short)
 	urlInOut = models.URLCopyOne(url)
@@ -176,7 +209,7 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
-		log.Fatal(err)
+		http.Error(res, constants.WriteResponseError, http.StatusInternalServerError)
 	}
 }
 
@@ -192,7 +225,7 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 
 	bodyBytes, _ := io.ReadAll(req.Body)
 	if reflect.DeepEqual(bodyBytes, []byte{}) {
-		http.Error(res, "Не удалось прочитать тело запроса", http.StatusBadRequest)
+		http.Error(res, constants.EmptyBodyError, http.StatusBadRequest)
 		return
 	}
 
@@ -206,7 +239,7 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 		UUID:     userID,
 	}
 
-	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn, c.Config.BaseURL)
+	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn)
 	urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 
 	res.Header().Set("Content-Type", "text/plain")
@@ -215,7 +248,7 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 
 	_, err = res.Write([]byte(urlOut.Short))
 	if err != nil {
-		log.Fatal(err)
+		http.Error(res, constants.WriteResponseError, http.StatusInternalServerError)
 	}
 }
 
@@ -231,15 +264,19 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 
 	defer req.Body.Close()
 
+	var err error
 	userID := req.Context().Value(constants.UserIDKey).(string)
 
 	urls, err := c.URLUseCase.GetAllURLs(ctx, userID)
 	if err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	var urlsOut []models.URLCopyFour
-	var urlOut models.URLCopyFour
+	var (
+		urlsOut []models.URLCopyFour
+		urlOut  models.URLCopyFour
+	)
 
 	for _, url := range urls {
 		urlOut = models.URLCopyFour(url)
@@ -247,15 +284,14 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 		urlsOut = append(urlsOut, urlOut)
 	}
 
-	// При отсутствии сокращённых пользователем URL хендлер должен отдавать HTTP-статус 204 No Content.
 	if len(urlsOut) == 0 {
-		res.WriteHeader(http.StatusNoContent)
+		http.Error(res, constants.NoContentError, http.StatusNoContent)
 		return
 	}
 
-	bodyResult, err2 := json.Marshal(urlsOut)
-	if err2 != nil {
-		http.Error(res, err.Error(), http.StatusInternalServerError)
+	bodyResult, err := json.Marshal(urlsOut)
+	if err != nil {
+		http.Error(res, constants.InvalidJSONError, http.StatusInternalServerError)
 		return
 	}
 
@@ -263,12 +299,12 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
-		log.Fatal(err)
+		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-// getlURLOriginal - обрабатка HTTP-запроса: тип запроcа - GET, возвращает оригинальный URL.
-func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request) {
+// getURLOriginal - обрабатка HTTP-запроса: тип запроcа - GET, возвращает оригинальный URL.
+func (c *Controller) getURLOriginal(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
 	defer cancel()
 
@@ -282,11 +318,11 @@ func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request)
 
 	urlOriginal, err := c.URLUseCase.GetOriginalURL(ctx, URLShort)
 	if err != nil {
-		if err == constants.ErrorURLNotExist {
+		if errors.Is(err, constants.ErrorURLNotExist) {
 			res.WriteHeader(http.StatusNotFound)
 			return
 		}
-		if err == constants.ErrorURLAlreadyDeleted {
+		if errors.Is(err, constants.ErrorURLAlreadyDeleted) {
 			res.WriteHeader(http.StatusGone)
 			return
 		}
@@ -299,22 +335,6 @@ func (c *Controller) getlURLOriginal(res http.ResponseWriter, req *http.Request)
 	res.Header().Add("Location", urlOriginal)
 	res.Header().Set("Content-Type", "text/plain")
 	res.WriteHeader(http.StatusTemporaryRedirect)
-}
-
-func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
-	defer cancel()
-
-	if err := c.URLUseCase.Ping(ctx); err != nil {
-		switch {
-		case errors.Is(err, constants.ErrorMethodNotAllowed):
-			res.WriteHeader(http.StatusMethodNotAllowed)
-		default:
-			res.WriteHeader(http.StatusInternalServerError)
-		}
-	} else {
-		res.WriteHeader(http.StatusOK)
-	}
 }
 
 // deleteURLs - удаление сокращенных URL.
@@ -352,4 +372,21 @@ func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	res.WriteHeader(http.StatusAccepted)
+}
+
+// pingDB - пинг БД.
+func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
+	defer cancel()
+
+	if err := c.URLUseCase.Ping(ctx); err != nil {
+		switch {
+		case errors.Is(err, constants.ErrorMethodNotAllowed):
+			res.WriteHeader(http.StatusMethodNotAllowed)
+		default:
+			res.WriteHeader(http.StatusInternalServerError)
+		}
+	} else {
+		res.WriteHeader(http.StatusOK)
+	}
 }

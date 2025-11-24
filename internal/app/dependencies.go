@@ -14,18 +14,20 @@ import (
 	"go.uber.org/zap"
 )
 
+// initConfigAndLogger - инициализация конфигурации и логгера.
 func initConfigAndLogger() (*config.Config, error) {
-	config := &config.Config{}
-	config.Parse()
+	cfg := config.NewConfig()
+	cfg.Parse()
 
 	var err error
-	if err = logger.Initialize(config.LogLevel); err != nil {
+	if err = logger.Initialize(cfg.LogLevel); err != nil {
 		return nil, err
 	}
-	logger.Log.Info("Запуска сервера", zap.String("address", config.ServerAddress))
-	return config, nil
+	logger.Log.Info("Запуска сервера", zap.String("address", cfg.ServerAddress))
+	return cfg, nil
 }
 
+// initRepoPostgres - инициализация репозитория для работы с PostgreSQL.
 func initRepoPostgres(cfg *config.Config) (*repository.RepoPostgres, error) {
 	repo, err := repository.NewRepoPostgres(cfg.DataBaseDSN)
 	if err != nil {
@@ -41,6 +43,7 @@ func initRepoPostgres(cfg *config.Config) (*repository.RepoPostgres, error) {
 	return repo, nil
 }
 
+// initRepoFile - инициализация репозитория для работы с файлом.
 func initRepoFile(cfg *config.Config) (*repository.RepoFile, error) {
 	consumer, err := repository.NewConsumer(cfg.FileStoragePath)
 	if err != nil {
@@ -66,6 +69,7 @@ func initRepoFile(cfg *config.Config) (*repository.RepoFile, error) {
 	return repo, nil
 }
 
+// initStorage - инициализация хранилища данных.
 func initStorage(cfg *config.Config) (usecase.URLRepository, error) {
 	if cfg.DataBaseDSN != "" {
 		return initRepoPostgres(cfg)
@@ -73,9 +77,10 @@ func initStorage(cfg *config.Config) (usecase.URLRepository, error) {
 	return initRepoFile(cfg)
 }
 
+// setupRouter - настройка маршрутизатора.
 func setupRouter(cfg *config.Config, repo usecase.URLRepository, svc *service.Service) http.Handler {
 	urlUseCase := usecase.NewURLUseCase(repo, svc)
 
 	controller := handler.NewСontroller(urlUseCase, cfg)
-	return controller.CreateRouter()
+	return controller.SetupRouter()
 }
