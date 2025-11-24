@@ -17,6 +17,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/lib/pq"
 )
@@ -82,6 +83,10 @@ func (repo *RepoPostgres) InsertOrdinary(ctx context.Context, url models.URLBase
 	query := "INSERT INTO urls (original, short, user_id) VALUES ($1, $2, $3)"
 	_, err := repo.db.ExecContext(ctx, query, url.Original, url.Short, url.UUID)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return fmt.Errorf("path: internal/repository/postgres_repository.go, func InsertOrdinary(), failed to insert url: %w", constants.ErrorURLAlreadyExist)
+		}
 		return fmt.Errorf("path: internal/repository/postgres_repository.go, func InsertOrdinary(), failed to insert url: %w", err)
 	}
 	return nil
@@ -104,6 +109,10 @@ func (repo *RepoPostgres) InsertBatch(ctx context.Context, urls []models.URLBase
 		_, err = stmt.ExecContext(ctx, url.Original, url.Short, url.UUID)
 	}
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return fmt.Errorf("path: internal/repository/postgres_repository.go, func InsertBatch(), failed to insert urls: %w", constants.ErrorURLAlreadyExist)
+		}
 		return fmt.Errorf("path: internal/repository/postgres_repository.go, func InsertBatch(), failed to insert urls: %w", err)
 	}
 	return tx.Commit()

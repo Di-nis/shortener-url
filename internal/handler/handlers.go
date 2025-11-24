@@ -23,7 +23,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -129,29 +128,20 @@ func (c *Controller) CreateURLShortJSONBatch(res http.ResponseWriter, req *http.
 	}
 
 	createdURLs, err := c.URLUseCase.CreateURLBatch(ctx, urls)
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			res.WriteHeader(http.StatusConflict)
-		} else {
-			http.Error(res, constants.InternalError, http.StatusInternalServerError)
-		}
-		return
-	}
 
 	// Добавление базового URL
 	for i := range createdURLs {
 		createdURLs[i].Short = addBaseURLToResponse(c.Config.BaseURL, createdURLs[i].Short)
 	}
 
-	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusCreated)
-
-	bodyResult, err := json.Marshal(createdURLs)
-	if err != nil {
+	bodyResult, marshalErr := json.Marshal(createdURLs)
+	if marshalErr != nil {
 		http.Error(res, constants.InvalidJSONError, http.StatusInternalServerError)
 		return
 	}
+
+	res.Header().Set("Content-Type", "application/json")
+	writeStatusCreate(res, err)
 
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
@@ -197,15 +187,14 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 	url.Short = addBaseURLToResponse(c.Config.BaseURL, url.Short)
 	urlInOut = models.URLJSON(url)
 
-	bodyResult, err2 := json.Marshal(urlInOut)
-	if err2 != nil {
+	bodyResult, marshalErr := json.Marshal(urlInOut)
+	if marshalErr != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	res.Header().Set("Content-Type", "application/json")
-
-	getStatusCode(res, err)
+	writeStatusCreate(res, err)
 
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
@@ -240,11 +229,11 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 	}
 
 	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn)
+
 	urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 
 	res.Header().Set("Content-Type", "text/plain")
-
-	getStatusCode(res, err)
+	writeStatusCreate(res, err)
 
 	_, err = res.Write([]byte(urlOut.Short))
 	if err != nil {
@@ -296,6 +285,7 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 	}
 
 	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
 
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
@@ -379,14 +369,6 @@ func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
 	defer cancel()
 
-	if err := c.URLUseCase.Ping(ctx); err != nil {
-		switch {
-		case errors.Is(err, constants.ErrorMethodNotAllowed):
-			res.WriteHeader(http.StatusMethodNotAllowed)
-		default:
-			res.WriteHeader(http.StatusInternalServerError)
-		}
-	} else {
-		res.WriteHeader(http.StatusOK)
-	}
+	err := c.URLUseCase.Ping(ctx)
+	writeStatusCodePing(res, err)
 }
