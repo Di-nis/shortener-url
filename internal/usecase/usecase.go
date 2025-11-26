@@ -103,7 +103,7 @@ func (urlUseCase *URLUseCase) CreateURLBatch(ctx context.Context, urls []models.
 	return urls, nil
 }
 
-// GetURL - получение оригинального URL.
+// GetOriginalURL - получение оригинального URL.
 func (urlUseCase *URLUseCase) GetOriginalURL(ctx context.Context, shortURL string) (string, error) {
 	originalURL, err := urlUseCase.Repo.SelectOriginal(ctx, shortURL)
 	if err != nil {

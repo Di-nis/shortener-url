@@ -93,7 +93,7 @@ func (c *Controller) RegisterRoutes(router *chi.Mux) {
 	router.Get("/debug/pprof/trace", pprof.Trace)
 }
 
-// createURLShortJSON - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
+// CreateURLShortJSONBatch - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
 func (c *Controller) CreateURLShortJSONBatch(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
 	defer cancel()

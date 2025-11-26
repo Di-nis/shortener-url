@@ -149,7 +149,7 @@ func (repo *RepoPostgres) SelectOriginal(ctx context.Context, urlShort string) (
 	return url.Original, nil
 }
 
-// GetAllURLs - получение всех когда-либо сокращенных пользователем URL.
+// SelectAll - получение всех когда-либо сокращенных пользователем URL.
 func (repo *RepoPostgres) SelectAll(ctx context.Context, userID string) ([]models.URLBase, error) {
 	stmt, err := repo.db.PrepareContext(ctx, "SELECT original, short FROM urls WHERE user_id = $1")
 	if err != nil {
