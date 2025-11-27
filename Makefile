@@ -48,7 +48,7 @@ autotests17:
 		-source-path=. \
 
 autotests18:
-	shortenertest -test.v -test.run=^TestIteration18$ \
+	shortenertestbeta -test.v -test.run=^TestIteration18$ \
 		-source-path=. \
 
 all:  statictests autotests1 autotests9 autotests10 autotests11 autotests12 autotests13 autotests14 autotests15
