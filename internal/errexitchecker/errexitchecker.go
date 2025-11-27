@@ -17,12 +17,14 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
+// ErrExitCheckAnalyzer - сущность анализатора.
 var ErrExitCheckAnalyzer = &analysis.Analyzer{
 	Name: "errexitcheck",
 	Doc:  "check for use of os.Exit in the main function of the main package",
 	Run:  run,
 }
 
+// Run - запуск проверки для ErrExitCheckAnalyzer.
 func run(pass *analysis.Pass) (interface{}, error) {
 	expr := func(x *ast.ExprStmt) {
 		if call, ok := x.X.(*ast.CallExpr); ok {
