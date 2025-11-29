@@ -28,8 +28,8 @@ func NewConfig() *Config {
 	return &Config{}
 }
 
-// Parse - метод для парсинга конфигурации из переменных окружения и аргументов командной строки.
-func (a *Config) Parse() {
+// Load - метод для парсинга конфигурации из переменных окружения и аргументов командной строки.
+func (a *Config) Load() {
 	// первый приоритет - из переменных окружения
 	_ = godotenv.Load()
 	_ = env.Parse(a)
@@ -38,7 +38,7 @@ func (a *Config) Parse() {
 	var serverAddress, baseURL, fileStoragePath, dataBaseDSN, auditFile, auditURL string
 	flag.StringVar(&serverAddress, "a", "localhost:8080", "URL")
 	flag.StringVar(&baseURL, "b", "http://localhost:8080", "Base URL")
-	flag.StringVar(&fileStoragePath, "f", "database.log", "File Storage Path")
+	flag.StringVar(&fileStoragePath, "f", "db.log", "File Storage Path")
 	flag.StringVar(&dataBaseDSN, "d", "", "Database Source Name")
 	flag.StringVar(&auditFile, "audit-file", "", "Audit File Path")
 	flag.StringVar(&auditURL, "audit-url", "", "Audit URL Path")

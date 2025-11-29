@@ -12,6 +12,7 @@ import (
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/repository"
 	"github.com/Di-nis/shortener-url/internal/service"
+	"github.com/Di-nis/shortener-url/internal/storage"
 	"github.com/Di-nis/shortener-url/internal/usecase"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
@@ -70,14 +71,14 @@ func clearFile(t *testing.T, path string) {
 
 func initHandler() (http.Handler, error) {
 	cfg := config.NewConfig()
-	cfg.Parse()
+	cfg.Load()
 
-	consumer, err := repository.NewConsumer(cfg.FileStoragePath)
+	consumer, err := storage.NewConsumer(cfg.FileStoragePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init consumer: %w", err)
 	}
 
-	producer, err := repository.NewProducer(cfg.FileStoragePath)
+	producer, err := storage.NewProducer(cfg.FileStoragePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init producer: %w", err)
 	}
@@ -87,7 +88,7 @@ func initHandler() (http.Handler, error) {
 		Producer: producer,
 	}
 
-	repo := repository.NewRepoFile(cfg.FileStoragePath, storage)
+	repo := repository.NewRepoFileMemory(storage)
 	svc := service.NewService()
 
 	urlUseCase := usecase.NewURLUseCase(repo, svc)
@@ -305,7 +306,9 @@ func testCreateURLFromJSON(t *testing.T, server *httptest.Server) {
 			req := resty.New().R()
 			req.Method = tt.method
 			req.URL = server.URL + "/api/shorten"
-			req.Header.Set("Content-Type", tt.contentType)
+			req.Header.Set("Content-Type",
+
+				tt.contentType)
 			req.Header.Set("Content-Encoding", tt.contentEncoding)
 			req.Header.Set("Accept-Encoding", tt.acceptEncoding)
 			req.Body = tt.body

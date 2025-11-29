@@ -79,7 +79,7 @@ var (
 	}
 )
 
-// TestService - тесирование сервиса.
+// TestService - тестирование сервиса.
 func TestService(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

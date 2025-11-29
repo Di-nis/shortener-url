@@ -9,15 +9,13 @@ import (
 
 // WriteCloser - интерфейс для записи в файл.
 type WriteCloser interface {
-	WriteURL(models.URLBase) error
-	SaveToFile(models.URLBase) error
+	Write(models.URLBase) error
 	Close() error
 }
 
 // ReadCloser - интерфейс для чтения из файла.
 type ReadCloser interface {
-	ReadURL() (*models.URLBase, error)
-	LoadFromFile() ([]models.URLBase, error)
+	Load() ([]models.URLBase, error)
 	Close() error
 }
 
@@ -27,71 +25,65 @@ type Storage struct {
 	Consumer ReadCloser
 }
 
-// RepoFile - структура базы данных.
-type RepoFile struct {
-	OriginalAndShortURL []models.URLBase
-	FileStoragePath     string
-	Storage             *Storage
+// RepoFileMemory - структура базы данных.
+type RepoFileMemory struct {
+	URLs    []models.URLBase
+	Storage *Storage
 }
 
-// NewRepoFile - создание структуры Repo.
-func NewRepoFile(fileStoragePath string, storage *Storage) *RepoFile {
-	return &RepoFile{
-		OriginalAndShortURL: make([]models.URLBase, 0),
-		FileStoragePath:     fileStoragePath,
-		Storage:             storage,
+// NewRepoFileMemory - создание структуры RepoFileMemory.
+func NewRepoFileMemory(storage *Storage) *RepoFileMemory {
+	return &RepoFileMemory{
+		URLs:    make([]models.URLBase, 0),
+		Storage: storage,
 	}
 }
 
 // Ping - проверка соединения с базой данных.
-func (repo *RepoFile) Ping(ctx context.Context) error {
+func (repo *RepoFileMemory) Ping(ctx context.Context) error {
 	return constants.ErrorMethodNotAllowed
 }
 
 // InsertBatch - сохранение нескольких URL в базу данных.
-func (repo *RepoFile) InsertBatch(ctx context.Context, urls []models.URLBase) error {
+func (repo *RepoFileMemory) InsertBatch(ctx context.Context, urls []models.URLBase) error {
 	for _, url := range urls {
-		for _, urlDB := range repo.OriginalAndShortURL {
+		for _, urlDB := range repo.URLs {
 			if urlDB.Original == url.Original {
 				return constants.ErrorURLAlreadyExist
 			}
 		}
 
-		repo.OriginalAndShortURL = append(repo.OriginalAndShortURL, url)
+		repo.URLs = append(repo.URLs, url)
 
-		if repo.FileStoragePath != "" {
-			err := repo.Storage.Producer.SaveToFile(url)
-			if err != nil {
-				return err
-			}
+		err := repo.Storage.Producer.Write(url)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
 // InsertOrdinary - сохранение ординарного URL в базу данных.
-func (repo *RepoFile) InsertOrdinary(ctx context.Context, url models.URLBase) error {
-	for _, urlDB := range repo.OriginalAndShortURL {
+func (repo *RepoFileMemory) InsertOrdinary(ctx context.Context, url models.URLBase) error {
+	for _, urlDB := range repo.URLs {
 		if urlDB.Original == url.Original {
 			return constants.ErrorURLAlreadyExist
 		}
 	}
 
-	repo.OriginalAndShortURL = append(repo.OriginalAndShortURL, url)
+	repo.URLs = append(repo.URLs, url)
 
-	if repo.FileStoragePath != "" {
-		err := repo.Storage.Producer.SaveToFile(url)
-		if err != nil {
-			return err
-		}
+	err := repo.Storage.Producer.Write(url)
+	if err != nil {
+		return err
 	}
 	return nil
 
 }
 
 // SelectOriginal - получение оригинального URL из базы данных.
-func (repo *RepoFile) SelectOriginal(ctx context.Context, shortURL string) (string, error) {
-	for _, url := range repo.OriginalAndShortURL {
+func (repo *RepoFileMemory) SelectOriginal(ctx context.Context, shortURL string) (string, error) {
+	for _, url := range repo.URLs {
 		if url.Short == shortURL && url.DeletedFlag {
 			return "", constants.ErrorURLAlreadyDeleted
 		} else if url.Short == shortURL {
@@ -102,8 +94,8 @@ func (repo *RepoFile) SelectOriginal(ctx context.Context, shortURL string) (stri
 }
 
 // SelectShort - получение оригинального URL из базы данных.
-func (repo *RepoFile) SelectShort(ctx context.Context, originalURL string) (string, error) {
-	for _, url := range repo.OriginalAndShortURL {
+func (repo *RepoFileMemory) SelectShort(ctx context.Context, originalURL string) (string, error) {
+	for _, url := range repo.URLs {
 		if url.Original == originalURL {
 			return url.Short, nil
 		}
@@ -112,10 +104,10 @@ func (repo *RepoFile) SelectShort(ctx context.Context, originalURL string) (stri
 }
 
 // SelectAll - получение всех когда-либо сокращенных пользователем URL.
-func (repo *RepoFile) SelectAll(ctx context.Context, userID string) ([]models.URLBase, error) {
+func (repo *RepoFileMemory) SelectAll(ctx context.Context, userID string) ([]models.URLBase, error) {
 	var urls []models.URLBase
 
-	for _, url := range repo.OriginalAndShortURL {
+	for _, url := range repo.URLs {
 		if url.UUID == userID {
 			urls = append(urls, url)
 		}
@@ -124,12 +116,12 @@ func (repo *RepoFile) SelectAll(ctx context.Context, userID string) ([]models.UR
 }
 
 // Delete - простановка флага удаления.
-func (repo *RepoFile) Delete(ctx context.Context, urls []models.URLBase) error {
+func (repo *RepoFileMemory) Delete(ctx context.Context, urls []models.URLBase) error {
 	for _, url := range urls {
-		for i, urlDB := range repo.OriginalAndShortURL {
+		for i, urlDB := range repo.URLs {
 			if urlDB.Short == url.Short && urlDB.UUID == url.UUID && !urlDB.DeletedFlag {
-				repo.OriginalAndShortURL[i].Original = ""
-				repo.OriginalAndShortURL[i].DeletedFlag = true
+				repo.URLs[i].Original = ""
+				repo.URLs[i].DeletedFlag = true
 			}
 		}
 	}

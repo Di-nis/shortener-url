@@ -29,7 +29,7 @@ func BenchmarkHandler(b *testing.B) {
 	defer ctrl.Finish()
 
 	cfg := config.NewConfig()
-	cfg.Parse()
+	cfg.Load()
 
 	useCase := getBenchmarkMocks(ctrl)
 	handler := NewСontroller(useCase, cfg)
