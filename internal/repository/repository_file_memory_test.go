@@ -5,27 +5,19 @@ import (
 	"reflect"
 	"testing"
 
-	//  "github.com/Di-nis/shortener-url/internal/app"
 	"github.com/Di-nis/shortener-url/internal/constants"
+	"github.com/Di-nis/shortener-url/internal/mocks"
 	"github.com/Di-nis/shortener-url/internal/models"
-	"github.com/Di-nis/shortener-url/internal/storage"
+	"github.com/golang/mock/gomock"
 )
-
-var fileStoragePath = "db_testing.log"
 
 // setupRepoFileMemory - тестирование .
 func setupRepoFileMemory(t *testing.T) *RepoFileMemory {
-	consumer, err := storage.NewConsumer(fileStoragePath)
-	if err != nil {
-		t.Fatalf("failed to init consumer: %v", err)
-	}
-	// defer consumer.Close()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	producer, err := storage.NewProducer(fileStoragePath)
-	if err != nil {
-		t.Fatalf("failed to init consumer: %v", err)
-	}
-	// defer producer.Close()
+	consumer := mocks.NewMockReadCloser(ctrl)
+	producer := mocks.NewMockWriteCloser(ctrl)
 
 	storage := &Storage{
 		Consumer: consumer,

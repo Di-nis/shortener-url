@@ -73,6 +73,7 @@ func InitRepoFile(fileStoragePath string) (*repository.RepoFileMemory, error) {
 	return repo, nil
 }
 
+// InitRepoMemory - инициализация репозитория для работы с памятью.
 func InitRepoMemory(cfg *config.Config) (*repository.RepoFileMemory, error) {
 	urls := make([]models.URLBase, 0)
 	consumer := storage.NewConsumerMemory(urls)
