@@ -6,8 +6,6 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/jackc/pgx/v5/pgconn"
-
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/models"
 	"github.com/Di-nis/shortener-url/internal/service"
@@ -58,8 +56,6 @@ func (urlUseCase *URLUseCase) Ping(ctx context.Context) error {
 
 // CreateURLOrdinary - создание короткого URL и его запись в базу данных.
 func (urlUseCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any) (models.URLBase, error) {
-	var PgErr *pgconn.PgError
-
 	urlOrdinary := convertToSingleType(urlIn)
 	urlOrdinary.Short = urlUseCase.Service.ShortHash(urlOrdinary.Original, constants.HashLength)
 
@@ -69,13 +65,7 @@ func (urlUseCase *URLUseCase) CreateURLOrdinary(ctx context.Context, urlIn any) 
 		return urlOrdinary, nil
 	}
 
-	if errors.As(err, &PgErr) {
-		switch PgErr.Code {
-		case "23505":
-			urlOrdinary.Short, _ = urlUseCase.Repo.SelectShort(ctx, urlOrdinary.Original)
-		}
-		return urlOrdinary, err
-	} else if errors.Is(err, constants.ErrorURLAlreadyExist) {
+	if errors.Is(err, constants.ErrorURLAlreadyExist) {
 		urlOrdinary.Short, _ = urlUseCase.Repo.SelectShort(ctx, urlOrdinary.Original)
 		return urlOrdinary, err
 	} else {
