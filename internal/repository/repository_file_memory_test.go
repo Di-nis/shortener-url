@@ -12,22 +12,10 @@ import (
 )
 
 // setupRepoFileMemory - тестирование .
-func setupRepoFileMemory(t *testing.T) *RepoFileMemory {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	consumer := mocks.NewMockReadCloser(ctrl)
-	producer := mocks.NewMockWriteCloser(ctrl)
-
-	storage := &Storage{
-		Consumer: consumer,
-		Producer: producer,
-	}
+func setupRepoFileMemory(storage *Storage) *RepoFileMemory {
 	repo := NewRepoFileMemory(storage)
-	repo.URLs = append(repo.URLs, urlsOut1...)
-	repo.URLs = append(repo.URLs, urlOut4)
+	repo.URLs = append(repo.URLs, urlsTestData...)
 	return repo
-
 }
 
 func TestRepoFileMemory_Ping(t *testing.T) {
@@ -42,7 +30,18 @@ func TestRepoFileMemory_Ping(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := setupRepoFileMemory(t)
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockConsumer := mocks.NewMockReadCloser(ctrl)
+			mockProducer := mocks.NewMockWriteCloser(ctrl)
+
+			storage := &Storage{
+				Consumer: mockConsumer,
+				Producer: mockProducer,
+			}
+
+			repo := setupRepoFileMemory(storage)
 			if got := repo.Ping(context.Background()); got != tt.want {
 				t.Errorf("TestRepoFile_Ping() = %v, want %v", got, tt.want)
 			}
@@ -54,22 +53,40 @@ func TestRepoFileMemory_InsertBatch(t *testing.T) {
 	tests := []struct {
 		name string
 		urls []models.URLBase
+		mock func(producer *mocks.MockWriteCloser)
 		want error
 	}{
 		{
 			name: "тест 1",
-			urls: []models.URLBase{urlOut1},
+			urls: []models.URLBase{urlTestData1},
+			mock: func(producer *mocks.MockWriteCloser) {},
 			want: constants.ErrorURLAlreadyExist,
 		},
 		{
 			name: "тест 2",
-			urls: []models.URLBase{urlOut3},
+			urls: []models.URLBase{urlTestData3},
+			mock: func(producer *mocks.MockWriteCloser) {
+				producer.EXPECT().Write(urlTestData3).Return(nil)
+			},
 			want: nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := setupRepoFileMemory(t)
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockConsumer := mocks.NewMockReadCloser(ctrl)
+			mockProducer := mocks.NewMockWriteCloser(ctrl)
+
+			tt.mock(mockProducer)
+
+			storage := &Storage{
+				Consumer: mockConsumer,
+				Producer: mockProducer,
+			}
+
+			repo := setupRepoFileMemory(storage)
 			if got := repo.InsertBatch(context.Background(), tt.urls); got != tt.want {
 				t.Errorf("TestRepoFileMemory_InsertBatch() = %v, want %v", got, tt.want)
 			}
@@ -82,21 +99,39 @@ func TestRepoFileMemory_InsertOrdinary(t *testing.T) {
 		name string
 		url  models.URLBase
 		want error
+		mock func(producer *mocks.MockWriteCloser)
 	}{
 		{
 			name: "тест 1",
-			url:  urlOut1,
+			url:  urlTestData1,
 			want: constants.ErrorURLAlreadyExist,
+			mock: func(producer *mocks.MockWriteCloser) {},
 		},
 		{
 			name: "тест 2",
-			url:  urlOut3,
+			url:  urlTestData3,
 			want: nil,
+			mock: func(producer *mocks.MockWriteCloser) {
+				producer.EXPECT().Write(urlTestData3).Return(nil)
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := setupRepoFileMemory(t)
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockConsumer := mocks.NewMockReadCloser(ctrl)
+			mockProducer := mocks.NewMockWriteCloser(ctrl)
+
+			tt.mock(mockProducer)
+
+			storage := &Storage{
+				Consumer: mockConsumer,
+				Producer: mockProducer,
+			}
+
+			repo := setupRepoFileMemory(storage)
 			if got := repo.InsertOrdinary(context.Background(), tt.url); got != tt.want {
 				t.Errorf("TestRepoFileMemory_InsertOrdinary() = %v, want %v", got, tt.want)
 			}
@@ -132,7 +167,18 @@ func TestRepoFileMemory_SelectOriginal(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := setupRepoFileMemory(t)
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockConsumer := mocks.NewMockReadCloser(ctrl)
+			mockProducer := mocks.NewMockWriteCloser(ctrl)
+
+			storage := &Storage{
+				Consumer: mockConsumer,
+				Producer: mockProducer,
+			}
+
+			repo := setupRepoFileMemory(storage)
 			got, gotErr := repo.SelectOriginal(context.Background(), tt.shortURL)
 			if got != tt.want || gotErr != tt.wantErr {
 				t.Errorf("TestRepoFileMemory_SelectOriginal() = %v, want %v", got, tt.wantErr)
@@ -163,7 +209,18 @@ func TestRepoFileMemory_SelectShort(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := setupRepoFileMemory(t)
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockConsumer := mocks.NewMockReadCloser(ctrl)
+			mockProducer := mocks.NewMockWriteCloser(ctrl)
+
+			storage := &Storage{
+				Consumer: mockConsumer,
+				Producer: mockProducer,
+			}
+
+			repo := setupRepoFileMemory(storage)
 			got, gotErr := repo.SelectShort(context.Background(), tt.originalURL)
 			if got != tt.want || gotErr != tt.wantErr {
 				t.Errorf("TestRepoFileMemory_SelectShort() = %v, want %v", got, tt.wantErr)
@@ -182,13 +239,24 @@ func TestRepoFileMemory_SelectAll(t *testing.T) {
 		{
 			name:    "тест 1",
 			userID:  UUID,
-			want:    urlsOut3,
+			want:    urlsTestData,
 			wantErr: nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := setupRepoFileMemory(t)
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockConsumer := mocks.NewMockReadCloser(ctrl)
+			mockProducer := mocks.NewMockWriteCloser(ctrl)
+
+			storage := &Storage{
+				Consumer: mockConsumer,
+				Producer: mockProducer,
+			}
+
+			repo := setupRepoFileMemory(storage)
 			got, gotErr := repo.SelectAll(context.Background(), tt.userID)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("TestRepoFileMemory_SelectAll() = %v, want %v", got, tt.want)
@@ -209,13 +277,24 @@ func TestRepoFileMemory_Delete(t *testing.T) {
 	}{
 		{
 			name: "тест 1",
-			urls: []models.URLBase{urlOut1},
+			urls: []models.URLBase{urlTestData1},
 			want: nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := setupRepoFileMemory(t)
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockConsumer := mocks.NewMockReadCloser(ctrl)
+			mockProducer := mocks.NewMockWriteCloser(ctrl)
+
+			storage := &Storage{
+				Consumer: mockConsumer,
+				Producer: mockProducer,
+			}
+
+			repo := setupRepoFileMemory(storage)
 			if got := repo.Delete(context.Background(), tt.urls); got != tt.want {
 				t.Errorf("TestRepoFileMemory_Delete() = %v, want %v", got, tt.want)
 			}

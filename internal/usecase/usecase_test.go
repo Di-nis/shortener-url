@@ -31,22 +31,17 @@ var (
 		Original:    urlOriginal2,
 		DeletedFlag: false,
 	}
-	urlIn3 = models.URLBase{
-		UUID:        UUID,
-		Original:    urlOriginal3,
-		DeletedFlag: false,
-	}
 
-	url1 = models.URLBase{
+	urlOut1 = models.URLBase{
 		UUID:        UUID,
 		Original:    urlOriginal1,
 		Short:       urlShort1,
 		DeletedFlag: false,
 	}
-	url2 = models.URLBase{
+	urlOut2 = models.URLBase{
 		UUID:        UUID,
-		Original:    urlOriginal3,
-		Short:       urlShort3,
+		Original:    urlOriginal2,
+		Short:       urlShort2,
 		DeletedFlag: false,
 	}
 
@@ -103,10 +98,10 @@ func getMocks(ctrl *gomock.Controller) *mocks.MockURLRepository {
 	mockRepository := mocks.NewMockURLRepository(ctrl)
 
 	mockRepository.EXPECT().Ping(gomock.Any()).Return(nil)
-	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), url1).Return(nil)
-	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), url2).Return(constants.ErrorURLAlreadyExist)
+	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), urlOut1).Return(nil)
+	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), urlOut2).Return(constants.ErrorURLAlreadyExist)
 	mockRepository.EXPECT().InsertBatch(gomock.Any(), urlsOut).Return(nil)
-	mockRepository.EXPECT().SelectShort(gomock.Any(), urlOriginal3).Return(urlShort3, nil)
+	mockRepository.EXPECT().SelectShort(gomock.Any(), urlOriginal2).Return(urlShort2, nil)
 	mockRepository.EXPECT().SelectOriginal(gomock.Any(), urlShort1).Return(urlOriginal1, nil)
 	mockRepository.EXPECT().SelectAll(gomock.Any(), UUID).Return(urlsOut, nil)
 	mockRepository.EXPECT().Delete(gomock.Any(), urlsOut).Return(nil)
@@ -140,13 +135,13 @@ func testCreateURLOrdinary(t *testing.T, useCase *URLUseCase) {
 		{
 			name:    "создание короткого URL, кейс 1",
 			urlIn:   urlIn1,
-			want:    url1,
+			want:    urlOut1,
 			wantErr: nil,
 		},
 		{
 			name:    "создание короткого URL, кейс 2",
-			urlIn:   urlIn3,
-			want:    url2,
+			urlIn:   urlIn2,
+			want:    urlOut2,
 			wantErr: constants.ErrorURLAlreadyExist,
 		},
 	}
@@ -287,10 +282,6 @@ func BenchmarkService(b *testing.B) {
 				name: "создание короткого URL, кейс 2",
 				url:  urlIn2,
 			},
-			{
-				name: "создание короткого URL, кейс 3",
-				url:  urlIn3,
-			},
 		}
 
 		for _, tt := range tests {
@@ -326,8 +317,8 @@ func getBenchmarkMocks(ctrl *gomock.Controller) *mocks.MockURLRepository {
 	mockRepository := mocks.NewMockURLRepository(ctrl)
 
 	mockRepository.EXPECT().Ping(gomock.Any()).Return(nil).AnyTimes()
-	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), url1).Return(nil).AnyTimes()
-	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), url2).Return(constants.ErrorURLAlreadyExist).AnyTimes()
+	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), urlOut1).Return(nil).AnyTimes()
+	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), urlOut2).Return(constants.ErrorURLAlreadyExist).AnyTimes()
 	mockRepository.EXPECT().InsertBatch(gomock.Any(), urlsOut).Return(nil).AnyTimes().AnyTimes()
 	mockRepository.EXPECT().SelectShort(gomock.Any(), urlOriginal2).Return(urlShort2, nil).AnyTimes()
 	mockRepository.EXPECT().SelectShort(gomock.Any(), urlOriginal3).Return(urlShort3, nil).AnyTimes()
