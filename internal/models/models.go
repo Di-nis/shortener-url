@@ -104,3 +104,35 @@ type URLGetAll struct {
 	URLID       string `json:"-"`
 	DeletedFlag bool   `json:"-"`
 }
+
+// Pooler - интерфейс для пула.
+type Pooler interface {
+	Reset()
+}
+
+// Pool - пул.
+type Pool[T Pooler] struct {
+	Buf []T
+}
+
+// NewPool - конструктор пула.
+func NewPool[T Pooler]() *Pool[Pooler] {
+	return &Pool[Pooler]{
+		Buf: make([]Pooler, 0),
+	}
+}
+
+// Get - получение элемента из пула.
+func (p *Pool[T]) Get() T {
+	if len(p.Buf) == 0 {
+		return *new(T)
+	}
+	t := p.Buf[len(p.Buf)-1]
+	p.Buf = p.Buf[:len(p.Buf)-1]
+	return t
+}
+
+// Put - добавление элемента в пул.
+func (p *Pool[T]) Put(t T) {
+	p.Buf = append(p.Buf, t)
+}
