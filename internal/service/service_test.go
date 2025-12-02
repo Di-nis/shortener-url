@@ -1,9 +1,10 @@
 package service
 
 import (
+	"testing"
+
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestService_ShortHash(t *testing.T) {

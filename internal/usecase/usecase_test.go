@@ -5,8 +5,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgconn"
-
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/mocks"
 	"github.com/Di-nis/shortener-url/internal/models"
@@ -23,42 +21,31 @@ var (
 	urlOriginal3 = "https://chatgpt.com/"
 	urlShort3    = "826drChJ"
 
-	urlIn1 = models.URL{
+	urlIn1 = models.URLBase{
 		UUID:        UUID,
 		Original:    urlOriginal1,
 		DeletedFlag: false,
 	}
-	urlIn2 = models.URL{
+	urlIn2 = models.URLBase{
 		UUID:        UUID,
 		Original:    urlOriginal2,
 		DeletedFlag: false,
 	}
-	urlIn3 = models.URL{
-		UUID:        UUID,
-		Original:    urlOriginal3,
-		DeletedFlag: false,
-	}
 
-	url1 = models.URL{
+	urlOut1 = models.URLBase{
 		UUID:        UUID,
 		Original:    urlOriginal1,
 		Short:       urlShort1,
 		DeletedFlag: false,
 	}
-	url2 = models.URL{
+	urlOut2 = models.URLBase{
 		UUID:        UUID,
 		Original:    urlOriginal2,
 		Short:       urlShort2,
 		DeletedFlag: false,
 	}
-	url3 = models.URL{
-		UUID:        UUID,
-		Original:    urlOriginal3,
-		Short:       urlShort3,
-		DeletedFlag: false,
-	}
 
-	urlsIn = []models.URL{
+	urlsIn = []models.URLBase{
 		{
 			UUID:        UUID,
 			Original:    urlOriginal1,
@@ -66,7 +53,7 @@ var (
 		},
 	}
 
-	urls = []models.URL{
+	urlsOut = []models.URLBase{
 		{
 			UUID:        UUID,
 			Original:    urlOriginal1,
@@ -74,12 +61,9 @@ var (
 			DeletedFlag: false,
 		},
 	}
-	err1 = &pgconn.PgError{
-		Code: "23505",
-	}
 )
 
-// TestService - тесирование сервиса.
+// TestService - тестирование сервиса.
 func TestService(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -114,15 +98,13 @@ func getMocks(ctrl *gomock.Controller) *mocks.MockURLRepository {
 	mockRepository := mocks.NewMockURLRepository(ctrl)
 
 	mockRepository.EXPECT().Ping(gomock.Any()).Return(nil)
-	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), url1).Return(nil)
-	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), url2).Return(err1)
-	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), url3).Return(constants.ErrorURLAlreadyExist)
-	mockRepository.EXPECT().InsertBatch(gomock.Any(), urls).Return(nil)
+	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), urlOut1).Return(nil)
+	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), urlOut2).Return(constants.ErrorURLAlreadyExist)
+	mockRepository.EXPECT().InsertBatch(gomock.Any(), urlsOut).Return(nil)
 	mockRepository.EXPECT().SelectShort(gomock.Any(), urlOriginal2).Return(urlShort2, nil)
-	mockRepository.EXPECT().SelectShort(gomock.Any(), urlOriginal3).Return(urlShort3, nil)
 	mockRepository.EXPECT().SelectOriginal(gomock.Any(), urlShort1).Return(urlOriginal1, nil)
-	mockRepository.EXPECT().SelectAll(gomock.Any(), UUID).Return(urls, nil)
-	mockRepository.EXPECT().Delete(gomock.Any(), urls).Return(nil)
+	mockRepository.EXPECT().SelectAll(gomock.Any(), UUID).Return(urlsOut, nil)
+	mockRepository.EXPECT().Delete(gomock.Any(), urlsOut).Return(nil)
 	return mockRepository
 }
 
@@ -147,25 +129,19 @@ func testCreateURLOrdinary(t *testing.T, useCase *URLUseCase) {
 	tests := []struct {
 		name    string
 		urlIn   any
-		want    models.URL
+		want    models.URLBase
 		wantErr error
 	}{
 		{
 			name:    "создание короткого URL, кейс 1",
 			urlIn:   urlIn1,
-			want:    url1,
+			want:    urlOut1,
 			wantErr: nil,
 		},
 		{
 			name:    "создание короткого URL, кейс 2",
 			urlIn:   urlIn2,
-			want:    url2,
-			wantErr: err1,
-		},
-		{
-			name:    "создание короткого URL, кейс 3",
-			urlIn:   urlIn3,
-			want:    url3,
+			want:    urlOut2,
 			wantErr: constants.ErrorURLAlreadyExist,
 		},
 	}
@@ -183,14 +159,14 @@ func testCreateURLOrdinary(t *testing.T, useCase *URLUseCase) {
 func testCreateURLBatch(t *testing.T, useCase *URLUseCase) {
 	tests := []struct {
 		name    string
-		urls    []models.URL
-		want    []models.URL
+		urls    []models.URLBase
+		want    []models.URLBase
 		wantErr error
 	}{
 		{
 			name:    "создание коротких URL (batch), кейс 1",
 			urls:    urlsIn,
-			want:    urls,
+			want:    urlsOut,
 			wantErr: nil,
 		},
 	}
@@ -235,13 +211,13 @@ func testGetAllURLs(t *testing.T, useCase *URLUseCase) {
 	tests := []struct {
 		name    string
 		userID  string
-		want    []models.URL
+		want    []models.URLBase
 		wantErr error
 	}{
 		{
 			name:    "получение всех URL пользователя, кейс 1",
 			userID:  UUID,
-			want:    urls,
+			want:    urlsOut,
 			wantErr: nil,
 		},
 	}
@@ -260,12 +236,12 @@ func testGetAllURLs(t *testing.T, useCase *URLUseCase) {
 func testDeleteURLs(t *testing.T, useCase *URLUseCase) {
 	tests := []struct {
 		name    string
-		urls    []models.URL
+		urls    []models.URLBase
 		wantErr error
 	}{
 		{
 			name:    "удаление URL, кейс 1",
-			urls:    urls,
+			urls:    urlsOut,
 			wantErr: nil,
 		},
 	}
@@ -306,10 +282,6 @@ func BenchmarkService(b *testing.B) {
 				name: "создание короткого URL, кейс 2",
 				url:  urlIn2,
 			},
-			{
-				name: "создание короткого URL, кейс 3",
-				url:  urlIn3,
-			},
 		}
 
 		for _, tt := range tests {
@@ -321,7 +293,7 @@ func BenchmarkService(b *testing.B) {
 	})
 	b.Run("CreateURLBatch", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			useCase.CreateURLBatch(ctx, urls)
+			useCase.CreateURLBatch(ctx, urlsOut)
 		}
 	})
 	b.Run("GetOriginalURL", func(b *testing.B) {
@@ -336,7 +308,7 @@ func BenchmarkService(b *testing.B) {
 	})
 	b.Run("DeleteURLs", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			useCase.DeleteURLs(ctx, urls)
+			useCase.DeleteURLs(ctx, urlsOut)
 		}
 	})
 }
@@ -345,14 +317,13 @@ func getBenchmarkMocks(ctrl *gomock.Controller) *mocks.MockURLRepository {
 	mockRepository := mocks.NewMockURLRepository(ctrl)
 
 	mockRepository.EXPECT().Ping(gomock.Any()).Return(nil).AnyTimes()
-	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), url1).Return(nil).AnyTimes()
-	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), url2).Return(err1).AnyTimes()
-	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), url3).Return(constants.ErrorURLAlreadyExist).AnyTimes()
-	mockRepository.EXPECT().InsertBatch(gomock.Any(), urls).Return(nil).AnyTimes().AnyTimes()
+	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), urlOut1).Return(nil).AnyTimes()
+	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), urlOut2).Return(constants.ErrorURLAlreadyExist).AnyTimes()
+	mockRepository.EXPECT().InsertBatch(gomock.Any(), urlsOut).Return(nil).AnyTimes().AnyTimes()
 	mockRepository.EXPECT().SelectShort(gomock.Any(), urlOriginal2).Return(urlShort2, nil).AnyTimes()
 	mockRepository.EXPECT().SelectShort(gomock.Any(), urlOriginal3).Return(urlShort3, nil).AnyTimes()
 	mockRepository.EXPECT().SelectOriginal(gomock.Any(), urlShort1).Return(urlOriginal1, nil).AnyTimes()
-	mockRepository.EXPECT().SelectAll(gomock.Any(), UUID).Return(urls, nil).AnyTimes().AnyTimes()
-	mockRepository.EXPECT().Delete(gomock.Any(), urls).Return(nil).AnyTimes().AnyTimes()
+	mockRepository.EXPECT().SelectAll(gomock.Any(), UUID).Return(urlsOut, nil).AnyTimes().AnyTimes()
+	mockRepository.EXPECT().Delete(gomock.Any(), urlsOut).Return(nil).AnyTimes().AnyTimes()
 	return mockRepository
 }

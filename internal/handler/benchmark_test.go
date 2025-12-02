@@ -16,11 +16,11 @@ func getBenchmarkMocks(ctrl *gomock.Controller) *mocks.MockURLUseCase {
 	mock := mocks.NewMockURLUseCase(ctrl)
 
 	mock.EXPECT().Ping(gomock.Any()).Return(nil).AnyTimes()
-	mock.EXPECT().CreateURLOrdinary(gomock.Any(), gomock.Any()).Return(models.URL{}, nil).AnyTimes()
-	mock.EXPECT().CreateURLBatch(gomock.Any(), gomock.AssignableToTypeOf([]models.URL{})).Return([]models.URL{}, nil).AnyTimes()
+	mock.EXPECT().CreateURLOrdinary(gomock.Any(), gomock.Any()).Return(models.URLBase{}, nil).AnyTimes()
+	mock.EXPECT().CreateURLBatch(gomock.Any(), gomock.AssignableToTypeOf([]models.URLBase{})).Return([]models.URLBase{}, nil).AnyTimes()
 	mock.EXPECT().GetOriginalURL(gomock.Any(), urlShort1).Return(urlOriginal1, nil).AnyTimes()
-	mock.EXPECT().GetAllURLs(gomock.Any(), gomock.AssignableToTypeOf("")).Return([]models.URL{}, nil).AnyTimes()
-	mock.EXPECT().DeleteURLs(gomock.Any(), gomock.AssignableToTypeOf([]models.URL{})).Return(nil).AnyTimes()
+	mock.EXPECT().GetAllURLs(gomock.Any(), gomock.AssignableToTypeOf("")).Return([]models.URLBase{}, nil).AnyTimes()
+	mock.EXPECT().DeleteURLs(gomock.Any(), gomock.AssignableToTypeOf([]models.URLBase{})).Return(nil).AnyTimes()
 	return mock
 }
 
@@ -29,7 +29,7 @@ func BenchmarkHandler(b *testing.B) {
 	defer ctrl.Finish()
 
 	cfg := config.NewConfig()
-	cfg.Parse()
+	cfg.Load()
 
 	useCase := getBenchmarkMocks(ctrl)
 	handler := NewСontroller(useCase, cfg)

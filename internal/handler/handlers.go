@@ -23,18 +23,17 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 // URLUseCase - интерфейс для бизнес-логики.
 type URLUseCase interface {
 	Ping(context.Context) error
-	CreateURLOrdinary(context.Context, any) (models.URL, error)
-	CreateURLBatch(context.Context, []models.URL) ([]models.URL, error)
+	CreateURLOrdinary(context.Context, any) (models.URLBase, error)
+	CreateURLBatch(context.Context, []models.URLBase) ([]models.URLBase, error)
 	GetOriginalURL(context.Context, string) (string, error)
-	GetAllURLs(context.Context, string) ([]models.URL, error)
-	DeleteURLs(context.Context, []models.URL) error
+	GetAllURLs(context.Context, string) ([]models.URLBase, error)
+	DeleteURLs(context.Context, []models.URLBase) error
 }
 
 // Controller - структура HTTP-хендлера.
@@ -94,7 +93,7 @@ func (c *Controller) RegisterRoutes(router *chi.Mux) {
 	router.Get("/debug/pprof/trace", pprof.Trace)
 }
 
-// createURLShortJSON - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
+// CreateURLShortJSONBatch - обрабатка HTTP-запроса: тип запроcа - POST, вовзвращает короткий URL.
 func (c *Controller) CreateURLShortJSONBatch(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
 	defer cancel()
@@ -118,7 +117,7 @@ func (c *Controller) CreateURLShortJSONBatch(res http.ResponseWriter, req *http.
 
 	userID := req.Context().Value(constants.UserIDKey).(string)
 
-	var urls []models.URL
+	var urls []models.URLBase
 	if err := json.Unmarshal(bodyBytes, &urls); err != nil {
 		http.Error(res, constants.InvalidJSONError, http.StatusBadRequest)
 		return
@@ -129,29 +128,20 @@ func (c *Controller) CreateURLShortJSONBatch(res http.ResponseWriter, req *http.
 	}
 
 	createdURLs, err := c.URLUseCase.CreateURLBatch(ctx, urls)
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			res.WriteHeader(http.StatusConflict)
-		} else {
-			http.Error(res, constants.InternalError, http.StatusInternalServerError)
-		}
-		return
-	}
 
 	// Добавление базового URL
 	for i := range createdURLs {
 		createdURLs[i].Short = addBaseURLToResponse(c.Config.BaseURL, createdURLs[i].Short)
 	}
 
-	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusCreated)
-
-	bodyResult, err := json.Marshal(createdURLs)
-	if err != nil {
+	bodyResult, marshalErr := json.Marshal(createdURLs)
+	if marshalErr != nil {
 		http.Error(res, constants.InvalidJSONError, http.StatusInternalServerError)
 		return
 	}
+
+	res.Header().Set("Content-Type", "application/json")
+	writeStatusCreate(res, err)
 
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
@@ -181,8 +171,8 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 	userID := req.Context().Value(constants.UserIDKey).(string)
 
 	var (
-		urlInOut models.URLCopyOne
-		url      models.URL
+		urlInOut models.URLJSON
+		url      models.URLBase
 	)
 
 	if err := json.Unmarshal(bodyBytes, &urlInOut); err != nil {
@@ -195,17 +185,16 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut)
 
 	url.Short = addBaseURLToResponse(c.Config.BaseURL, url.Short)
-	urlInOut = models.URLCopyOne(url)
+	urlInOut = models.URLJSON(url)
 
-	bodyResult, err2 := json.Marshal(urlInOut)
-	if err2 != nil {
+	bodyResult, marshalErr := json.Marshal(urlInOut)
+	if marshalErr != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	res.Header().Set("Content-Type", "application/json")
-
-	getStatusCode(res, err)
+	writeStatusCreate(res, err)
 
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
@@ -234,17 +223,17 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 	// Получение userID через middleware Auth
 	userID := req.Context().Value(constants.UserIDKey).(string)
 
-	urlIn := models.URL{
+	urlIn := models.URLBase{
 		Original: string(bodyBytes),
 		UUID:     userID,
 	}
 
 	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn)
+
 	urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 
 	res.Header().Set("Content-Type", "text/plain")
-
-	getStatusCode(res, err)
+	writeStatusCreate(res, err)
 
 	_, err = res.Write([]byte(urlOut.Short))
 	if err != nil {
@@ -274,12 +263,12 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 	}
 
 	var (
-		urlsOut []models.URLCopyFour
-		urlOut  models.URLCopyFour
+		urlsOut []models.URLGetAll
+		urlOut  models.URLGetAll
 	)
 
 	for _, url := range urls {
-		urlOut = models.URLCopyFour(url)
+		urlOut = models.URLGetAll(url)
 		urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 		urlsOut = append(urlsOut, urlOut)
 	}
@@ -296,6 +285,7 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 	}
 
 	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
 
 	_, err = res.Write([]byte(bodyResult))
 	if err != nil {
@@ -351,7 +341,7 @@ func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
 	userID := req.Context().Value(constants.UserIDKey).(string)
 
 	var shorts []string
-	urls := []models.URL{}
+	urls := []models.URLBase{}
 
 	if err := json.NewDecoder(req.Body).Decode(&shorts); err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
@@ -361,7 +351,7 @@ func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
 	for _, short := range shorts {
-		urls = append(urls, models.URL{
+		urls = append(urls, models.URLBase{
 			Short: short,
 			UUID:  userID,
 		})
@@ -379,14 +369,6 @@ func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
 	defer cancel()
 
-	if err := c.URLUseCase.Ping(ctx); err != nil {
-		switch {
-		case errors.Is(err, constants.ErrorMethodNotAllowed):
-			res.WriteHeader(http.StatusMethodNotAllowed)
-		default:
-			res.WriteHeader(http.StatusInternalServerError)
-		}
-	} else {
-		res.WriteHeader(http.StatusOK)
-	}
+	err := c.URLUseCase.Ping(ctx)
+	writeStatusCodePing(res, err)
 }

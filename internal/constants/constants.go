@@ -15,6 +15,7 @@ const (
 	UserIDKey  contextKey = "userID"
 )
 
+// Кастомные ошибки.
 var (
 	// URL уже существует
 	ErrorURLAlreadyExist = errors.New("URL already exists")

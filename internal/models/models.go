@@ -10,8 +10,8 @@ type User struct {
 	ID int
 }
 
-// URL - модель URL.
-type URL struct {
+// URLBase - основная модель для сущности url.
+type URLBase struct {
 	UUID        string `db:"user_id"`
 	Short       string `db:"short"`
 	Original    string `db:"original"`
@@ -20,7 +20,7 @@ type URL struct {
 }
 
 // MarshalJSON - метод для сериализации модели URL.
-func (url URL) MarshalJSON() ([]byte, error) {
+func (url URLBase) MarshalJSON() ([]byte, error) {
 	urlAlias := struct {
 		Short    string `json:"short_url"`
 		Original string `json:"-"`
@@ -35,7 +35,7 @@ func (url URL) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON - метод для десериализации модели URL.
-func (url *URL) UnmarshalJSON(data []byte) error {
+func (url *URLBase) UnmarshalJSON(data []byte) error {
 	type URLAlias struct {
 		Short    string `json:"-"`
 		Original string `json:"original_url"`
@@ -52,8 +52,8 @@ func (url *URL) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// URLCopyOne - модель URL.
-type URLCopyOne struct {
+// URLJSON - сопутствующая модель для сущности url.
+type URLJSON struct {
 	UUID        string
 	Short       string
 	Original    string
@@ -62,7 +62,7 @@ type URLCopyOne struct {
 }
 
 // MarshalJSON - метод для сериализации модели URL.
-func (url URLCopyOne) MarshalJSON() ([]byte, error) {
+func (url URLJSON) MarshalJSON() ([]byte, error) {
 	urlAlias := struct {
 		Short string `json:"result"`
 	}{
@@ -73,7 +73,7 @@ func (url URLCopyOne) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON - метод для десериализации модели URL.
-func (url *URLCopyOne) UnmarshalJSON(data []byte) error {
+func (url *URLJSON) UnmarshalJSON(data []byte) error {
 	type URLAlias struct {
 		Original string `json:"url"`
 	}
@@ -87,8 +87,8 @@ func (url *URLCopyOne) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// URLCopyTwo - модель URL.
-type URLCopyTwo struct {
+// URLStorage - сопутствующая модель для сущности url.
+type URLStorage struct {
 	UUID        string `json:"uuid"`
 	Short       string `json:"url_short"`
 	Original    string `json:"url_original"`
@@ -96,20 +96,43 @@ type URLCopyTwo struct {
 	DeletedFlag bool   `json:"-"`
 }
 
-// URLCopyThree - модель URL.
-type URLCopyThree struct {
-	UUID        string `json:"-"`
-	Short       string `json:"url_short"`
-	Original    string `json:"url_original"`
-	URLID       string `json:"-"`
-	DeletedFlag bool   `json:"-"`
-}
-
-// URLCopyFour - модель URL.
-type URLCopyFour struct {
+// URLGetAll - модель URL.
+type URLGetAll struct {
 	UUID        string `json:"-"`
 	Short       string `json:"short_url"`
 	Original    string `json:"original_url"`
 	URLID       string `json:"-"`
 	DeletedFlag bool   `json:"-"`
+}
+
+// Pooler - интерфейс для пула.
+type Pooler interface {
+	Reset()
+}
+
+// Pool - пул.
+type Pool[T Pooler] struct {
+	Buf []T
+}
+
+// NewPool - конструктор пула.
+func NewPool[T Pooler]() *Pool[Pooler] {
+	return &Pool[Pooler]{
+		Buf: make([]Pooler, 0),
+	}
+}
+
+// Get - получение элемента из пула.
+func (p *Pool[T]) Get() T {
+	if len(p.Buf) == 0 {
+		return *new(T)
+	}
+	t := p.Buf[len(p.Buf)-1]
+	p.Buf = p.Buf[:len(p.Buf)-1]
+	return t
+}
+
+// Put - добавление элемента в пул.
+func (p *Pool[T]) Put(t T) {
+	p.Buf = append(p.Buf, t)
 }

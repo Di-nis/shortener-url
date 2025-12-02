@@ -19,36 +19,36 @@ var (
 	bodyText1     = `https://maximum.ru/`
 	bodyText2     = `https://www.khl.ru/`
 
-	urlIn1 = models.URL{
+	urlIn1 = models.URLBase{
 		UUID:     UUID,
 		URLID:    "1",
 		Original: urlOriginal1}
 
-	urlIn2 = models.URL{
+	urlIn2 = models.URLBase{
 		UUID:     UUID,
 		URLID:    "2",
 		Original: urlOriginal2}
 
-	urlIn3 = models.URLCopyOne{
+	urlIn3 = models.URLJSON{
 		UUID:     UUID,
 		Original: urlOriginal1}
 
-	urlIn4 = models.URL{
+	urlIn4 = models.URLBase{
 		UUID:     UUID,
 		Original: urlOriginal1}
 
-	urlIn5 = models.URL{
+	urlIn5 = models.URLBase{
 		UUID:  UUID,
 		Short: urlShort1}
 
-	urlIn6 = models.URL{
+	urlIn6 = models.URLBase{
 		UUID:  UUID,
 		Short: urlShort2}
 
-	urlsIn1 = []models.URL{urlIn1, urlIn2}
-	urlsIn2 = []models.URL{urlIn5, urlIn6}
+	urlsIn1 = []models.URLBase{urlIn1, urlIn2}
+	urlsIn2 = []models.URLBase{urlIn5, urlIn6}
 
-	urlOut1 = models.URL{
+	urlOut1 = models.URLBase{
 		UUID:        UUID,
 		URLID:       "1",
 		Original:    urlOriginal1,
@@ -56,7 +56,7 @@ var (
 		DeletedFlag: false,
 	}
 
-	urlOut2 = models.URL{
+	urlOut2 = models.URLBase{
 		UUID:        UUID,
 		URLID:       "2",
 		Original:    urlOriginal2,
@@ -64,22 +64,22 @@ var (
 		DeletedFlag: false,
 	}
 
-	urlOut3 = models.URL{
+	urlOut3 = models.URLBase{
 		UUID:        UUID,
 		Original:    urlOriginal1,
 		Short:       urlShort1,
 		DeletedFlag: false,
 	}
 
-	urlOut4 = models.URL{
+	urlOut4 = models.URLBase{
 		UUID:        UUID,
 		Original:    urlOriginal1,
 		Short:       urlShort1,
 		DeletedFlag: false,
 	}
 
-	urlsOut1 = []models.URL{urlOut1, urlOut2}
-	urlsOut2 = []models.URL{
+	urlsOut1 = []models.URLBase{urlOut1, urlOut2}
+	urlsOut2 = []models.URLBase{
 		{
 			Original: urlOriginal1,
 			Short:    urlShort1,

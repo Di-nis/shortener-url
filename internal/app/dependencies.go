@@ -7,8 +7,10 @@ import (
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/handler"
 	"github.com/Di-nis/shortener-url/internal/logger"
+	"github.com/Di-nis/shortener-url/internal/models"
 	"github.com/Di-nis/shortener-url/internal/repository"
 	"github.com/Di-nis/shortener-url/internal/service"
+	"github.com/Di-nis/shortener-url/internal/storage"
 	"github.com/Di-nis/shortener-url/internal/usecase"
 
 	"go.uber.org/zap"
@@ -17,7 +19,7 @@ import (
 // initConfigAndLogger - инициализация конфигурации и логгера.
 func initConfigAndLogger() (*config.Config, error) {
 	cfg := config.NewConfig()
-	cfg.Parse()
+	cfg.Load()
 
 	var err error
 	if err = logger.Initialize(cfg.LogLevel); err != nil {
@@ -43,25 +45,48 @@ func initRepoPostgres(cfg *config.Config) (*repository.RepoPostgres, error) {
 	return repo, nil
 }
 
-// initRepoFile - инициализация репозитория для работы с файлом.
-func initRepoFile(cfg *config.Config) (*repository.RepoFile, error) {
-	consumer, err := repository.NewConsumer(cfg.FileStoragePath)
+// InitRepoFile - инициализация репозитория для работы с файлом.
+func InitRepoFile(fileStoragePath string) (*repository.RepoFileMemory, error) {
+	consumer, err := storage.NewConsumer(fileStoragePath)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка инициализации consumer: %w", err)
 	}
+	// defer consumer.Close()
 
-	producer, err := repository.NewProducer(cfg.FileStoragePath)
+	producer, err := storage.NewProducer(fileStoragePath)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка инициализации producer: %w", err)
 	}
+	// defer producer.Close()
 
 	storage := &repository.Storage{
 		Consumer: consumer,
 		Producer: producer,
 	}
 
-	repo := repository.NewRepoFile(cfg.FileStoragePath, storage)
-	repo.OriginalAndShortURL, err = storage.Consumer.LoadFromFile()
+	repo := repository.NewRepoFileMemory(storage)
+	repo.URLs, err = storage.Consumer.Load()
+	if err != nil {
+		return nil, fmt.Errorf("ошибка загрузки данных из файла-хранилища: %w", err)
+	}
+
+	return repo, nil
+}
+
+// InitRepoMemory - инициализация репозитория для работы с памятью.
+func InitRepoMemory(cfg *config.Config) (*repository.RepoFileMemory, error) {
+	urls := make([]models.URLBase, 0)
+	consumer := storage.NewConsumerMemory(urls)
+	producer := storage.NewProducerMemory(urls)
+
+	storage := &repository.Storage{
+		Consumer: consumer,
+		Producer: producer,
+	}
+
+	var err error
+	repo := repository.NewRepoFileMemory(storage)
+	repo.URLs, err = storage.Consumer.Load()
 	if err != nil {
 		return nil, fmt.Errorf("ошибка загрузки данных из файла-хранилища: %w", err)
 	}
@@ -74,7 +99,10 @@ func initStorage(cfg *config.Config) (usecase.URLRepository, error) {
 	if cfg.DataBaseDSN != "" {
 		return initRepoPostgres(cfg)
 	}
-	return initRepoFile(cfg)
+	if cfg.FileStoragePath != "" {
+		return InitRepoFile(cfg.FileStoragePath)
+	}
+	return InitRepoMemory(cfg)
 }
 
 // setupRouter - настройка маршрутизатора.
