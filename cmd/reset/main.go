@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/Di-nis/shortener-url/internal/reset"
 	"log"
+
+	"github.com/Di-nis/shortener-url/internal/reset"
 )
 
 func main() {

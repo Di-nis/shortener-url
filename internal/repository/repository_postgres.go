@@ -158,12 +158,13 @@ func (repo *RepoPostgres) SelectAll(ctx context.Context, userID string) ([]model
 	defer stmt.Close()
 
 	rows, err := stmt.QueryContext(ctx, userID)
-	if rows.Err() != nil {
-		return nil, fmt.Errorf("path: internal/repository/postgres_repository.go, func SelectAll(), row iteration failed: %w", err)
-	}
 	if err != nil {
 		return nil, fmt.Errorf("path: internal/repository/postgres_repository.go, func SelectAll(), failed to get urls: %w", err)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("path: internal/repository/postgres_repository.go, func SelectAll(), row iteration failed: %w", err)
+	}
+
 	urls := make([]models.URLBase, 0, 20)
 
 	for rows.Next() {
@@ -199,12 +200,13 @@ func (repo *RepoPostgres) Delete(ctx context.Context, urls []models.URLBase) err
 	UPDATE urls AS u SET is_deleted = true FROM (VALUES ` + strings.Join(values, ",") + `) AS v(short, user_id) WHERE u.short = v.short AND u.user_id = v.user_id;`
 
 	result, err := repo.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("path: internal/repository/postgres_repository.go, func Delete(), failed to delete url: %w", err)
+	}
+
 	count, _ := result.RowsAffected()
 	if count == 0 {
 		return fmt.Errorf("path: internal/repository/postgres_repository.go, func Delete(), url not found: %w", constants.ErrorNotFound)
-	}
-	if err != nil {
-		return fmt.Errorf("path: internal/repository/postgres_repository.go, func Delete(), failed to delete url: %w", err)
 	}
 	return nil
 }

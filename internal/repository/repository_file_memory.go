@@ -109,7 +109,7 @@ func (repo *RepoFileMemory) SelectAll(ctx context.Context, userID string) ([]mod
 
 	for _, url := range repo.URLs {
 		if url.UUID == userID {
-			urls = append(urls, url)
+			urls = append(urls, models.URLBase{Original: url.Original, Short: url.Short})
 		}
 	}
 	return urls, nil
