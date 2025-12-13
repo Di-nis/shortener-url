@@ -21,6 +21,9 @@ type Config struct {
 	AuditFile       string `env:"AUDIT_FILE"`
 	AuditURL        string `env:"AUDIT_URL"`
 	UseMockAuth     bool
+	EnableHTTPS     bool   `env:"ENABLE_HTTPS"`
+	CertFilePath    string `env:"CERT_FILE_PATH"`
+	KeyFilePath     string `env:"KEY_FILE_PATH"`
 }
 
 // NewConfig - функция для создания конфигурации.
@@ -35,13 +38,18 @@ func (a *Config) Load() {
 	_ = env.Parse(a)
 
 	// второй приоритет - из аргументов командной строки
-	var serverAddress, baseURL, fileStoragePath, dataBaseDSN, auditFile, auditURL string
+	var (
+		serverAddress, baseURL, fileStoragePath string
+		dataBaseDSN, auditFile, auditURL        string
+		enableHTTPS                             bool
+	)
 	flag.StringVar(&serverAddress, "a", "localhost:8080", "URL")
 	flag.StringVar(&baseURL, "b", "http://localhost:8080", "Base URL")
 	flag.StringVar(&fileStoragePath, "f", "db.log", "File Storage Path")
 	flag.StringVar(&dataBaseDSN, "d", "", "Database Source Name")
 	flag.StringVar(&auditFile, "audit-file", "", "Audit File Path")
 	flag.StringVar(&auditURL, "audit-url", "", "Audit URL Path")
+	flag.BoolVar(&enableHTTPS, "s", false, "Use HTTPS web-server")
 
 	flag.Parse()
 
@@ -62,5 +70,8 @@ func (a *Config) Load() {
 	}
 	if a.AuditURL == "" {
 		a.AuditURL = auditURL
+	}
+	if !a.EnableHTTPS {
+		a.EnableHTTPS = enableHTTPS
 	}
 }

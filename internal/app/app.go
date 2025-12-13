@@ -23,5 +23,9 @@ func Run() error {
 
 	svc := service.NewService()
 	router := setupRouter(cfg, repo, svc)
+
+	if cfg.EnableHTTPS {
+		return http.ListenAndServeTLS(cfg.ServerAddress, cfg.CertFilePath, cfg.KeyFilePath, router)
+	}
 	return http.ListenAndServe(cfg.ServerAddress, router)
 }
