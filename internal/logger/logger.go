@@ -14,6 +14,23 @@ var Log *zap.Logger = zap.NewNop()
 // Sugar *zap.SugaredLogger.
 var Sugar *zap.SugaredLogger
 
+// Initialize - инициализирует логгер.
+func Initialize(level string) error {
+	lvl, err := zap.ParseAtomicLevel(level)
+	if err != nil {
+		return err
+	}
+	cfg := zap.NewProductionConfig()
+	cfg.Level = lvl
+	zl, err := cfg.Build()
+	if err != nil {
+		return err
+	}
+	Log = zl
+	Sugar = Log.Sugar()
+	return nil
+}
+
 // responseData - структура для хранения данных о ответе.
 type responseData struct {
 	status int
@@ -37,23 +54,6 @@ func (r *loggingResponseWriter) Write(b []byte) (int, error) {
 func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.ResponseWriter.WriteHeader(statusCode)
 	r.responseData.status = statusCode
-}
-
-// Initialize - инициализирует логгер.
-func Initialize(level string) error {
-	lvl, err := zap.ParseAtomicLevel(level)
-	if err != nil {
-		return err
-	}
-	cfg := zap.NewProductionConfig()
-	cfg.Level = lvl
-	zl, err := cfg.Build()
-	if err != nil {
-		return err
-	}
-	Log = zl
-	Sugar = Log.Sugar()
-	return nil
 }
 
 // WithLogging - middleware-логгер.

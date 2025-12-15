@@ -31,6 +31,16 @@ type RepoFileMemory struct {
 	Storage *Storage
 }
 
+// Close - закрытие файла.
+func (repo *RepoFileMemory) Close() error {
+	if repo.Storage != nil {
+		if err := repo.Storage.Producer.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // NewRepoFileMemory - создание структуры RepoFileMemory.
 func NewRepoFileMemory(storage *Storage) *RepoFileMemory {
 	return &RepoFileMemory{

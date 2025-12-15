@@ -3,29 +3,63 @@
 package app
 
 import (
+	"context"
 	"net/http"
+	"os/signal"
+	"syscall"
+	"time"
 
+	"github.com/Di-nis/shortener-url/internal/logger"
 	"github.com/Di-nis/shortener-url/internal/service"
 )
 
 // Run - запуск приложения.
 func Run() error {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	defer stop()
+
 	cfg, err := initConfigAndLogger()
 	if err != nil {
 		return err
 	}
+
 	repo, err := initStorage(cfg)
 	if err != nil {
 		return err
 	}
 
-	// defer repo.Close()
-
 	svc := service.NewService()
-	router := setupRouter(cfg, repo, svc)
+	routerHandler := setupRouter(cfg, repo, svc)
 
-	if cfg.EnableHTTPS {
-		return http.ListenAndServeTLS(cfg.ServerAddress, cfg.CertFilePath, cfg.KeyFilePath, router)
+	httpServer := &http.Server{
+		Addr:    cfg.ServerAddress,
+		Handler: routerHandler,
 	}
-	return http.ListenAndServe(cfg.ServerAddress, router)
+
+	go func() {
+		if cfg.EnableHTTPS {
+			if err = httpServer.ListenAndServeTLS(cfg.CertFilePath, cfg.KeyFilePath); err != nil && err != http.ErrServerClosed {
+				logger.Sugar.Fatalf("failed start TLS-server: %w", err)
+			}
+		}
+		if err = httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Sugar.Fatalf("failed start server: %w", err)
+		}
+	}()
+
+	<-ctx.Done()
+
+	shutDownCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	go func() {
+		if err := httpServer.Shutdown(context.Background()); err != nil {
+			logger.Sugar.Errorf("Ошибка graceful shutdown: %w", err)
+		}
+		if err = repo.Close(); err != nil {
+			logger.Sugar.Errorf("Ошибка закрытия базы данных: %w", err)
+		}
+	}()
+	<-shutDownCtx.Done()
+	return nil
 }
