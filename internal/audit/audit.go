@@ -4,7 +4,9 @@ package audit
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -14,6 +16,23 @@ import (
 	"github.com/Di-nis/shortener-url/internal/logger"
 	"github.com/Di-nis/shortener-url/internal/models"
 )
+
+// attemptsCount - максимальное количество попыток при запросах на удаленный сервер.
+const attemptsCount = 5
+
+// Client - структура для отправки логов на URL.
+type Client struct {
+	httpClient *http.Client
+	url        string
+}
+
+// NewClient - функция для создания нового экземпляра Client.
+func NewClient(httpClient *http.Client, url string) *Client {
+	return &Client{
+		httpClient: httpClient,
+		url:        url,
+	}
+}
 
 // Audit - структура для хранения данных аудита.
 type Audit struct {
@@ -46,10 +65,9 @@ func getAction(method string) string {
 }
 
 // getURL - получение url.
-func getURL(w http.ResponseWriter, r *http.Request) string {
+func getURL(w http.ResponseWriter, r *http.Request) (string, error) {
 	var (
 		urlInOut models.URLJSON
-		err      error
 		url      string
 	)
 
@@ -58,7 +76,10 @@ func getURL(w http.ResponseWriter, r *http.Request) string {
 	}
 
 	if r.Method == http.MethodPost {
-		bodyBytes, _ := io.ReadAll(r.Body)
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			return "", fmt.Errorf("path: internal/audit/audit.go, func getURL(), read body error: %w", err)
+		}
 
 		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
@@ -69,58 +90,118 @@ func getURL(w http.ResponseWriter, r *http.Request) string {
 			url = urlInOut.Original
 		}
 	}
-	return url
+	return url, nil
 }
 
 // saveLogsToFile - сохранение логов в файл.
 func saveLogsToFile(auditFile, action, userID, url string) {
-	if auditFile != "" {
-		audit := NewAudit(action, userID, url)
-		producer, _ := NewProducer(auditFile)
-		defer producer.Close()
+	audit := NewAudit(action, userID, url)
+	producer, _ := NewProducer(auditFile)
+	defer producer.Close()
 
-		err := producer.Write(audit)
-		if err != nil {
-			logger.Sugar.Info("path: internal/audit/audit.go, func saveLogsToFile(), save to file error", err.Error())
-		}
+	err := producer.Write(audit)
+	if err != nil {
+		logger.Sugar.Info("path: internal/audit/audit.go, func saveLogsToFile(), save to file error", err.Error())
 	}
 }
 
 // sendLogsToURL - отправка логов на URL.
-func sendLogsToURL(auditURL, action, userID, url string) {
-	if auditURL != "" {
-		audit := NewAudit(action, userID, url)
-		data, _ := json.Marshal(&audit)
+func sendLogsToURL(ctx context.Context, client *Client, action, userID, url string) error {
+	var (
+		lastResErr, reqErr error
+		req                *http.Request
+	)
 
-		client := &http.Client{}
-		resp, err := client.Post(auditURL, "application/json", bytes.NewBuffer(data))
+	for range attemptsCount {
+		audit := NewAudit(action, userID, url)
+		data, err := json.Marshal(&audit)
 		if err != nil {
-			logger.Sugar.Errorf("path: internal/audit/audit.go, func sendLogsToURL(), request to audit URL error", err)
-			return
+			logger.Sugar.Info(
+				"path: internal/audit/audit.go, func sendLogsToURL(), marshal error",
+				err.Error(),
+			)
 		}
-		err = resp.Body.Close()
+
+		req, reqErr = http.NewRequestWithContext(
+			ctx,
+			http.MethodPost,
+			client.url,
+			bytes.NewBuffer(data),
+		)
+		if reqErr != nil {
+			continue
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := client.httpClient.Do(req)
 		if err != nil {
-			logger.Sugar.Errorf("path: internal/audit/audit.go, func sendLogsToURL(), body closing error", err)
+			lastResErr = err
+			continue
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			lastResErr = nil
+			break
 		}
 	}
+
+	if lastResErr == nil && reqErr == nil {
+		return nil
+	}
+
+	logger.Sugar.Warnw(
+		"path: internal/audit/audit.go, func sendLogsToURL(), audit retry",
+		"attempt", attemptsCount,
+		"err", lastResErr,
+	)
+
+	select {
+	case <-time.After(time.Duration(attemptsCount) * time.Second):
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	return lastResErr
 }
 
 // WithAudit - middleware-аудит.
-func WithAudit(auditFile, auditURL string) func(http.Handler) http.Handler {
+func WithAudit(client *Client, auditFile string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			var action, userID, url string
+			var (
+				action, userID, url string
+				err                 error
+			)
 
 			userID = r.Context().Value(constants.UserIDKey).(string)
 			action = getAction(r.Method)
 
+			url, err = getURL(w, r)
+			if err != nil {
+				logger.Sugar.Info(
+					"path: internal/audit/audit.go, func WithAudit(), get url error",
+					err.Error(),
+				)
+			}
+
 			next.ServeHTTP(w, r)
 
-			url = getURL(w, r)
+			if auditFile != "" {
+				saveLogsToFile(auditFile, action, userID, url)
+			}
 
-			saveLogsToFile(auditFile, action, userID, url)
-			sendLogsToURL(auditURL, action, userID, url)
+			if client.url == "" {
+				return
+			}
 
+			if err := sendLogsToURL(r.Context(), client, action, userID, url); err != nil {
+				logger.Sugar.Info(
+					"path: internal/audit/audit.go, func WithAudit(), send to audit URL error",
+					err.Error(),
+				)
+			}
 		})
 	}
 }

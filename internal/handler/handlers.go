@@ -40,6 +40,7 @@ type URLUseCase interface {
 type Controller struct {
 	URLUseCase URLUseCase
 	Config     *config.Config
+	Client     *audit.Client
 }
 
 // NewСontroller - создание структуры Controller.
@@ -47,6 +48,7 @@ func NewСontroller(urlUseCase URLUseCase, config *config.Config) *Controller {
 	return &Controller{
 		URLUseCase: urlUseCase,
 		Config:     config,
+		Client:     audit.NewClient(&http.Client{}, config.AuditURL),
 	}
 }
 
@@ -78,7 +80,7 @@ func (c *Controller) RegisterRoutes(router *chi.Mux) {
 	router.Get("/ping", c.pingDB)
 
 	router.Group(func(r chi.Router) {
-		r.Use(audit.WithAudit(c.Config.AuditFile, c.Config.AuditURL))
+		r.Use(audit.WithAudit(c.Client, c.Config.AuditFile))
 
 		r.Post("/", c.createURLShortText)
 		r.Post("/api/shorten", c.createURLShortJSON)
