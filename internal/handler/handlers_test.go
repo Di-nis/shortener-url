@@ -24,7 +24,7 @@ func TestHandler(t *testing.T) {
 
 	t.Setenv("SERVER_ADDRESS", "localhost:8080")
 	t.Setenv("BASE_URL", "http://localhost:8080")
-	t.Setenv("DATABASE_DSN", "host=localhost port=5432 user=postgres password=postgres dbname=shortener sslmode=disable")
+	// t.Setenv("DATABASE_DSN", "host=localhost port=5432 user=postgres password=postgres dbname=shortener sslmode=disable")
 	t.Setenv("FILE_STORAGE_PATH", fieStoragePath)
 
 	handler, _ := initHandler()

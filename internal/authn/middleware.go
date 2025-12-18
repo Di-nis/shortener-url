@@ -16,9 +16,9 @@ import (
 // AuthMiddleware - аутентификация пользователя.
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		var userID string
+		var userID, tokenString, sessionID string
+
 		JWTSecret := os.Getenv("JWT_SECRET")
-		tokenString := ""
 		cookie, err := req.Cookie("auth_token")
 		if err != nil {
 			tokenString = ""
@@ -28,7 +28,8 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		if tokenString == "" {
 			userID = GenerateUserID()
-			newToken, err := BuildJWTString(userID, JWTSecret)
+			sessionID = GenerateSessionID()
+			newToken, err := BuildJWTString(JWTSecret, userID, sessionID)
 			if err != nil {
 				http.Error(res, "Ошибка создания токена", http.StatusInternalServerError)
 				return
@@ -41,15 +42,23 @@ func AuthMiddleware(next http.Handler) http.Handler {
 				Domain:   "localhost",
 				HttpOnly: true,
 				SameSite: http.SameSiteLaxMode,
+				Secure:   true,
 			}
 			http.SetCookie(res, newCookie)
 			res.Header().Set("Authorization", newToken)
 		} else {
-			userID = GetUserID(tokenString, JWTSecret)
-			if userID == "-1" {
-				http.Error(res, "Невалидный токен", http.StatusUnauthorized)
+			claims, isTokenValid := GetClaims(tokenString, JWTSecret)
+			if !isTokenValid {
+				http.Error(res, "token not valid", http.StatusUnauthorized)
 				return
 			}
+			userID = claims.UserID
+			sessionID = claims.SID
+			if sessionID == "" {
+				http.Error(res, "session ID not valid", http.StatusUnauthorized)
+				return
+			}
+
 			http.SetCookie(res, cookie)
 			res.Header().Set("Authorization", tokenString)
 		}

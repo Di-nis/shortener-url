@@ -15,6 +15,11 @@ const (
 	UserIDKey  contextKey = "userID"
 )
 
+// Роли пользователей.
+const (
+	User = "user"
+)
+
 // Кастомные ошибки.
 var (
 	// URL уже существует
