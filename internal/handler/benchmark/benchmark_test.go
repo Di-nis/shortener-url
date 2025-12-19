@@ -1,4 +1,4 @@
-package handler
+package handlerbenchmark_test
 
 import (
 	"net/http"
@@ -6,10 +6,20 @@ import (
 	"testing"
 
 	"github.com/Di-nis/shortener-url/internal/config"
+	"github.com/Di-nis/shortener-url/internal/handler"
 	"github.com/Di-nis/shortener-url/internal/mocks"
 	"github.com/Di-nis/shortener-url/internal/models"
 	"github.com/go-resty/resty/v2"
 	"github.com/golang/mock/gomock"
+)
+
+var (
+	urlOriginal1 = "https://www.khl.ru/"
+	urlShort1    = "lJJpJV7h"
+
+	bodyJSONBatch = `[{"correlation_id":"1","original_url":"https://www.khl.ru/"},{"correlation_id":"2","original_url":"https://www.dynamo.ru/"}]`
+	bodyJSON1     = `{"url":"https://www.khl.ru/"}`
+	bodyText1     = `https://maximum.ru/`
 )
 
 func getBenchmarkMocks(ctrl *gomock.Controller) *mocks.MockURLUseCase {
@@ -32,7 +42,7 @@ func BenchmarkHandler(b *testing.B) {
 	cfg.Load()
 
 	useCase := getBenchmarkMocks(ctrl)
-	handler := NewСontroller(useCase, cfg)
+	handler := handler.NewСontroller(useCase, cfg)
 	router := handler.SetupRouter()
 	server := httptest.NewServer(router)
 

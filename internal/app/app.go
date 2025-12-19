@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os/signal"
 	"syscall"
@@ -11,12 +12,18 @@ import (
 
 	"github.com/Di-nis/shortener-url/internal/logger"
 	"github.com/Di-nis/shortener-url/internal/service"
+
+	"github.com/joho/godotenv"
 )
 
 // Run - запуск приложения.
 func Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	defer stop()
+
+	if err := godotenv.Load(); err != nil {
+		return fmt.Errorf("path: internal/config/config.go, func loanFromEnv(), failed to load env: %w", err)
+	}
 
 	cfg, err := initConfigAndLogger()
 	if err != nil {

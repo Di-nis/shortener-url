@@ -9,8 +9,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/joho/godotenv"
-
 	"github.com/caarlos0/env/v6"
 )
 
@@ -50,11 +48,7 @@ func (c *Config) Load() {
 
 // loanFromEnv - загрузка конфигурации из переменных окружения.
 func (c *Config) loanFromEnv() error {
-	var err error
-	if err = godotenv.Load(); err != nil {
-		return fmt.Errorf("path: internal/config/config.go, func loanFromEnv(), failed to load env: %w", err)
-	}
-	if err = env.Parse(c); err != nil {
+	if err := env.Parse(c); err != nil {
 		return fmt.Errorf("path: internal/config/config.go, func loanFromEnv(), failed to parse env: %w", err)
 	}
 	return nil
