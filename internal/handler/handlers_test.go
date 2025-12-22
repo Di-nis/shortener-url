@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -18,56 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestHandler(t *testing.T) {
-	fieStoragePath := "../../database_test.log"
-
-	t.Setenv("SERVER_ADDRESS", "localhost:8080")
-	t.Setenv("BASE_URL", "http://localhost:8080")
-	t.Setenv("DATABASE_DSN", "host=localhost port=5432 user=postgres password=postgres dbname=shortener sslmode=disable")
-	t.Setenv("FILE_STORAGE_PATH", fieStoragePath)
-
-	handler, _ := initHandler()
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	t.Run("01_TestCreateURLShortJSONBatch", func(t *testing.T) {
-		testCreateURLShortJSONBatch(t, server)
-	})
-	t.Run("02_TestCreateURLFromText", func(t *testing.T) {
-		testCreateURLFromText(t, server)
-	})
-
-	t.Run("03_TestCreateURLFromJSON", func(t *testing.T) {
-		testCreateURLFromJSON(t, server)
-	})
-
-	t.Run("04_TestGetURL", func(t *testing.T) {
-		testGetURL(t, server)
-	})
-
-	t.Run("05_TestGetAllURLs", func(t *testing.T) {
-		testGetAllURLs(t, server)
-	})
-
-	t.Run("06_TestdeleteURLs", func(t *testing.T) {
-		testdeleteURLs(t, server)
-	})
-	t.Run("07_testPingDB", func(t *testing.T) {
-		testPingDB(t, server)
-	})
-
-	clearFile(t, fieStoragePath)
-}
-
-func clearFile(t *testing.T, path string) {
-	t.Helper()
-	f, err := os.OpenFile(path, os.O_TRUNC|os.O_WRONLY, 0644)
-	if err != nil {
-		t.Fatalf("failed to clear file: %v", err)
-	}
-	f.Close()
-}
 
 func initHandler() (http.Handler, error) {
 	cfg := config.NewConfig()
@@ -97,7 +48,41 @@ func initHandler() (http.Handler, error) {
 	return router, nil
 }
 
-func testCreateURLShortJSONBatch(t *testing.T, server *httptest.Server) {
+func setEnv() {
+	var err error
+
+	err = os.Setenv("SERVER_ADDRESS", "localhost:8080")
+	if err != nil {
+		log.Fatalf("set env SERVER_ADDRESS failed: %v", err)
+	}
+
+	err = os.Setenv("BASE_URL", "http://localhost:8080")
+	if err != nil {
+		log.Fatalf("set env BASE_URL failed: %v", err)
+	}
+
+	err = os.Setenv("FILE_STORAGE_PATH", "../../database_test.log")
+	if err != nil {
+		log.Fatalf("set env FILE_STORAGE_PATH failed: %v", err)
+	}
+}
+
+var testServer *httptest.Server
+
+func TestMain(m *testing.M) {
+	setEnv()
+
+	handler, err := initHandler()
+	if err != nil {
+		log.Fatalf("init handler failed: %v", err)
+	}
+	testServer = httptest.NewServer(handler)
+	defer testServer.Close()
+
+	os.Exit(m.Run())
+}
+
+func TestController_CreateURLShortJSONBatch(t *testing.T) {
 	type want struct {
 		statusCode  int
 		body        string
@@ -138,7 +123,7 @@ func testCreateURLShortJSONBatch(t *testing.T, server *httptest.Server) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := resty.New().R()
 			req.Method = tt.method
-			req.URL = server.URL + "/api/shorten/batch"
+			req.URL = testServer.URL + "/api/shorten/batch"
 			req.Body = tt.body
 			req.SetHeaders(map[string]string{
 				"Content-Type": tt.contentType,
@@ -158,7 +143,7 @@ func testCreateURLShortJSONBatch(t *testing.T, server *httptest.Server) {
 	}
 }
 
-func testCreateURLFromText(t *testing.T, server *httptest.Server) {
+func TestController_CreateURLFromText(t *testing.T) {
 	type want struct {
 		statusCode  int
 		body        string
@@ -217,7 +202,7 @@ func testCreateURLFromText(t *testing.T, server *httptest.Server) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := resty.New().R()
 			req.Method = tt.method
-			req.URL = server.URL
+			req.URL = testServer.URL
 			req.Body = tt.body
 			req.SetHeaders(map[string]string{
 				"Content-Type":     tt.contentType,
@@ -239,7 +224,7 @@ func testCreateURLFromText(t *testing.T, server *httptest.Server) {
 	}
 }
 
-func testCreateURLFromJSON(t *testing.T, server *httptest.Server) {
+func TestController_CreateURLFromJSON(t *testing.T) {
 	type want struct {
 		statusCode      int
 		body            string
@@ -305,7 +290,7 @@ func testCreateURLFromJSON(t *testing.T, server *httptest.Server) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := resty.New().R()
 			req.Method = tt.method
-			req.URL = server.URL + "/api/shorten"
+			req.URL = testServer.URL + "/api/shorten"
 			req.Header.Set("Content-Type",
 
 				tt.contentType)
@@ -330,14 +315,14 @@ func testCreateURLFromJSON(t *testing.T, server *httptest.Server) {
 	}
 }
 
-func testGetURL(t *testing.T, server *httptest.Server) {
+func TestController_GetURL(t *testing.T) {
 	var cookies []*http.Cookie
 
 	t.Run("Предварительное создание данных", func(t *testing.T) {
 		reqPre := resty.New().R()
 		reqPre.Method = http.MethodPost
 		reqPre.Body = "https://www.sports.ru"
-		reqPre.URL = server.URL
+		reqPre.URL = testServer.URL
 
 		respPre, err := reqPre.Send()
 		if err != nil {
@@ -395,7 +380,7 @@ func testGetURL(t *testing.T, server *httptest.Server) {
 			req := resty.New().R()
 			req.Method = tt.method
 			req.Cookies = tt.cookies
-			req.URL = server.URL + "/" + tt.shortURL
+			req.URL = testServer.URL + "/" + tt.shortURL
 
 			resp, err := req.Send()
 			if err != nil {
@@ -413,14 +398,14 @@ func testGetURL(t *testing.T, server *httptest.Server) {
 	}
 }
 
-func testGetAllURLs(t *testing.T, server *httptest.Server) {
+func TestController_GetAllURLs(t *testing.T) {
 	var cookies []*http.Cookie
 
 	t.Run("Предварительное создание данных", func(t *testing.T) {
 		req := resty.New().R()
 		req.Method = http.MethodPost
 		req.Body = "google.ru"
-		req.URL = server.URL
+		req.URL = testServer.URL
 
 		resp, err := req.Send()
 		if err != nil {
@@ -477,7 +462,7 @@ func testGetAllURLs(t *testing.T, server *httptest.Server) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := resty.New().R()
 			req.Method = tt.method
-			req.URL = server.URL + "/api/user/urls"
+			req.URL = testServer.URL + "/api/user/urls"
 			req.Cookies = tt.cookies
 
 			resp, err := req.Send()
@@ -496,14 +481,14 @@ func testGetAllURLs(t *testing.T, server *httptest.Server) {
 	}
 }
 
-func testdeleteURLs(t *testing.T, server *httptest.Server) {
+func TestController_deleteURLs(t *testing.T) {
 	var cookies []*http.Cookie
 
 	t.Run("Предварительное создание данных", func(t *testing.T) {
 		req := resty.New().R()
 		req.Method = http.MethodPost
 		req.Body = `{"correlation_id":"1","original_url":"https://maximum.ru/"},{"correlation_id":"2","original_url":"https://radioultra.ru/"}`
-		req.URL = fmt.Sprintf("%s/api/shorten/batch", server.URL)
+		req.URL = fmt.Sprintf("%s/api/shorten/batch", testServer.URL)
 
 		resp, err := req.Send()
 		if err != nil {
@@ -546,7 +531,7 @@ func testdeleteURLs(t *testing.T, server *httptest.Server) {
 		req := resty.New().R()
 		req.Method = tt.method
 		req.Body = tt.body
-		req.URL = server.URL + "/api/user/urls"
+		req.URL = testServer.URL + "/api/user/urls"
 		req.Cookies = tt.cookies
 
 		resp, err := req.Send()
@@ -560,7 +545,7 @@ func testdeleteURLs(t *testing.T, server *httptest.Server) {
 	}
 }
 
-func testPingDB(t *testing.T, server *httptest.Server) {
+func TestController_PingDB(t *testing.T) {
 	type want struct {
 		statusCode int
 	}
@@ -580,7 +565,7 @@ func testPingDB(t *testing.T, server *httptest.Server) {
 	for _, tt := range tests {
 		req := resty.New().R()
 		req.Method = tt.method
-		req.URL = server.URL + "/ping"
+		req.URL = testServer.URL + "/ping"
 
 		resp, err := req.Send()
 		if err == nil {

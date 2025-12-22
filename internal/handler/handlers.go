@@ -26,27 +26,56 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// URLUseCase - интерфейс для бизнес-логики.
-type URLUseCase interface {
+// Pinger - интерфейс для проверки соединения с БД.
+type Pinger interface {
 	Ping(context.Context) error
+}
+
+// URLCreator - интерфейс, включащий методы по созданию URL.
+type URLCreator interface {
 	CreateURLOrdinary(context.Context, any) (models.URLBase, error)
 	CreateURLBatch(context.Context, []models.URLBase) ([]models.URLBase, error)
+}
+
+// URLReader - интерфейс, включащий методы по получению URL.
+type URLReader interface {
 	GetOriginalURL(context.Context, string) (string, error)
 	GetAllURLs(context.Context, string) ([]models.URLBase, error)
+}
+
+// URLDeleter - интерфейс, включащий методы по удалению URL.
+type URLDeleter interface {
 	DeleteURLs(context.Context, []models.URLBase) error
+}
+
+// URLUseCase - объединенный интерфейс.
+type URLUseCase interface {
+	Pinger
+	URLCreator
+	URLReader
+	URLDeleter
 }
 
 // Controller - структура HTTP-хендлера.
 type Controller struct {
-	URLUseCase URLUseCase
-	Config     *config.Config
+	Pinger     Pinger
+	URLCreator URLCreator
+	URLReader  URLReader
+	URLDeleter URLDeleter
+
+	Config *config.Config
+	Client *audit.Client
 }
 
 // NewСontroller - создание структуры Controller.
 func NewСontroller(urlUseCase URLUseCase, config *config.Config) *Controller {
 	return &Controller{
-		URLUseCase: urlUseCase,
+		Pinger:     urlUseCase,
+		URLCreator: urlUseCase,
+		URLReader:  urlUseCase,
+		URLDeleter: urlUseCase,
 		Config:     config,
+		Client:     audit.NewClient(&http.Client{}, config.AuditURL),
 	}
 }
 
@@ -78,7 +107,7 @@ func (c *Controller) RegisterRoutes(router *chi.Mux) {
 	router.Get("/ping", c.pingDB)
 
 	router.Group(func(r chi.Router) {
-		r.Use(audit.WithAudit(c.Config.AuditFile, c.Config.AuditURL))
+		r.Use(audit.WithAudit(c.Client, c.Config.AuditFile))
 
 		r.Post("/", c.createURLShortText)
 		r.Post("/api/shorten", c.createURLShortJSON)
@@ -118,7 +147,9 @@ func (c *Controller) CreateURLShortJSONBatch(res http.ResponseWriter, req *http.
 	userID := req.Context().Value(constants.UserIDKey).(string)
 
 	var urls []models.URLBase
-	if err := json.Unmarshal(bodyBytes, &urls); err != nil {
+	if err :=
+
+		json.Unmarshal(bodyBytes, &urls); err != nil {
 		http.Error(res, constants.InvalidJSONError, http.StatusBadRequest)
 		return
 	}
@@ -127,7 +158,7 @@ func (c *Controller) CreateURLShortJSONBatch(res http.ResponseWriter, req *http.
 		urls[i].UUID = userID
 	}
 
-	createdURLs, err := c.URLUseCase.CreateURLBatch(ctx, urls)
+	createdURLs, err := c.URLCreator.CreateURLBatch(ctx, urls)
 
 	// Добавление базового URL
 	for i := range createdURLs {
@@ -182,7 +213,7 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 
 	urlInOut.UUID = userID
 
-	url, err := c.URLUseCase.CreateURLOrdinary(ctx, urlInOut)
+	url, err := c.URLCreator.CreateURLOrdinary(ctx, urlInOut)
 
 	url.Short = addBaseURLToResponse(c.Config.BaseURL, url.Short)
 	urlInOut = models.URLJSON(url)
@@ -228,7 +259,7 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 		UUID:     userID,
 	}
 
-	urlOut, err := c.URLUseCase.CreateURLOrdinary(ctx, urlIn)
+	urlOut, err := c.URLCreator.CreateURLOrdinary(ctx, urlIn)
 
 	urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 
@@ -256,7 +287,7 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 	var err error
 	userID := req.Context().Value(constants.UserIDKey).(string)
 
-	urls, err := c.URLUseCase.GetAllURLs(ctx, userID)
+	urls, err := c.URLReader.GetAllURLs(ctx, userID)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
@@ -270,7 +301,9 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 	for _, url := range urls {
 		urlOut = models.URLGetAll(url)
 		urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
-		urlsOut = append(urlsOut, urlOut)
+		urlsOut = append(urlsOut,
+
+			urlOut)
 	}
 
 	if len(urlsOut) == 0 {
@@ -306,7 +339,7 @@ func (c *Controller) getURLOriginal(res http.ResponseWriter, req *http.Request) 
 	URLShort := chi.URLParam(req, "short_url")
 	defer req.Body.Close()
 
-	urlOriginal, err := c.URLUseCase.GetOriginalURL(ctx, URLShort)
+	urlOriginal, err := c.URLReader.GetOriginalURL(ctx, URLShort)
 	if err != nil {
 		if errors.Is(err, constants.ErrorURLNotExist) {
 			res.WriteHeader(http.StatusNotFound)
@@ -357,7 +390,7 @@ func (c *Controller) deleteURLs(res http.ResponseWriter, req *http.Request) {
 		})
 	}
 
-	if err := c.URLUseCase.DeleteURLs(ctx, urls); err != nil {
+	if err := c.URLDeleter.DeleteURLs(ctx, urls); err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -369,6 +402,6 @@ func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)
 	defer cancel()
 
-	err := c.URLUseCase.Ping(ctx)
+	err := c.Pinger.Ping(ctx)
 	writeStatusCodePing(res, err)
 }

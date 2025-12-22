@@ -25,7 +25,7 @@ func initConfigAndLogger() (*config.Config, error) {
 	if err = logger.Initialize(cfg.LogLevel); err != nil {
 		return nil, err
 	}
-	logger.Log.Info("Запуска сервера", zap.String("address", cfg.ServerAddress))
+	logger.Sugar.Info("Запуска сервера", zap.String("address", cfg.ServerAddress))
 	return cfg, nil
 }
 
@@ -51,13 +51,11 @@ func InitRepoFile(fileStoragePath string) (*repository.RepoFileMemory, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ошибка инициализации consumer: %w", err)
 	}
-	// defer consumer.Close()
 
 	producer, err := storage.NewProducer(fileStoragePath)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка инициализации producer: %w", err)
 	}
-	// defer producer.Close()
 
 	storage := &repository.Storage{
 		Consumer: consumer,

@@ -29,16 +29,15 @@ func getExampleMocks(ctrl *gomock.Controller) *mocks.MockURLUseCase {
 }
 
 func setupServer() *httptest.Server {
-	fieStoragePath := "../../database_test.log"
-
 	ctrl := gomock.NewController(nil)
 	defer ctrl.Finish()
 
-	cfg := config.NewConfig()
-	cfg.UseMockAuth = true
-	cfg.ServerAddress = "localhost:8081"
-	cfg.BaseURL = "http://localhost:8081"
-	cfg.FileStoragePath = fieStoragePath
+	cfg := &config.Config{
+		UseMockAuth:     true,
+		ServerAddress:   "localhost:8081",
+		BaseURL:         "http://localhost:8081",
+		FileStoragePath: "../../database_test.log",
+	}
 
 	useCase := getExampleMocks(ctrl)
 	handler := NewСontroller(useCase, cfg)

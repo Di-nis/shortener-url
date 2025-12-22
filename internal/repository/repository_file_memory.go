@@ -31,6 +31,16 @@ type RepoFileMemory struct {
 	Storage *Storage
 }
 
+// Close - закрытие файла.
+func (repo *RepoFileMemory) Close() error {
+	if repo.Storage != nil {
+		if err := repo.Storage.Producer.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // NewRepoFileMemory - создание структуры RepoFileMemory.
 func NewRepoFileMemory(storage *Storage) *RepoFileMemory {
 	return &RepoFileMemory{
@@ -109,7 +119,7 @@ func (repo *RepoFileMemory) SelectAll(ctx context.Context, userID string) ([]mod
 
 	for _, url := range repo.URLs {
 		if url.UUID == userID {
-			urls = append(urls, url)
+			urls = append(urls, models.URLBase{Original: url.Original, Short: url.Short})
 		}
 	}
 	return urls, nil

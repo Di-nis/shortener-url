@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/Di-nis/shortener-url/internal/models"
 )
 
@@ -8,44 +10,66 @@ import (
 var (
 	UUID = "01KA3YRQCWTNAJEGR5Z30PH6VT"
 
-	urlOriginal1 = "https://www.khl.ru/"
-	urlShort1    = "lJJpJV7h"
-	urlOriginal2 = "https://www.dynamo.ru/"
-	urlShort2    = "kiFL71uv"
-	urlOriginal3 = "https://www.fcdin.com/"
-	urlShort3    = "kihjTR8h"
-	urlOriginal4 = "https://www.sports.ru/"
-	urlShort4    = "jkj7fgk2"
+	url1      = "https://www.khl.ru/"
+	urlAlias1 = "lJJpJV7h"
+	url2      = "https://www.dynamo.ru/"
+	urlAlias2 = "kiFL71uv"
+	url3      = "https://www.fcdin.com/"
+	urlAlias3 = "kihjTR8h"
+	url4      = "https://www.sports.ru/"
+	urlAlias4 = "jkj7fgk2"
 
-	urlTestData1 = models.URLBase{
+	testURLFull1 = models.URLBase{
 		UUID:        UUID,
 		URLID:       "1",
-		Original:    urlOriginal1,
-		Short:       urlShort1,
+		Original:    url1,
+		Short:       urlAlias1,
 		DeletedFlag: false,
 	}
 
-	urlTestData2 = models.URLBase{
+	testURLShort1 = models.URLBase{
+		Original: url1,
+		Short:    urlAlias1,
+	}
+
+	testURLFull2 = models.URLBase{
 		UUID:        UUID,
 		URLID:       "2",
-		Original:    urlOriginal2,
-		Short:       urlShort2,
+		Original:    url2,
+		Short:       urlAlias2,
 		DeletedFlag: false,
 	}
 
-	urlTestData3 = models.URLBase{
+	testURLShort2 = models.URLBase{
+		Original: url2,
+		Short:    urlAlias2,
+	}
+
+	testURLFull3 = models.URLBase{
 		UUID:        UUID,
-		Original:    urlOriginal3,
-		Short:       urlShort3,
+		Original:    url3,
+		Short:       urlAlias3,
 		DeletedFlag: false,
 	}
 
-	urlTestData4 = models.URLBase{
+	testURLFull4 = models.URLBase{
 		UUID:        UUID,
-		Original:    urlOriginal4,
-		Short:       urlShort4,
+		Original:    url4,
+		Short:       urlAlias4,
 		DeletedFlag: true,
 	}
 
-	urlsTestData = []models.URLBase{urlTestData1, urlTestData2, urlTestData4}
+	testURLShort4 = models.URLBase{
+		Original: url4,
+		Short:    urlAlias4,
+	}
+
+	testURLsFull  = []models.URLBase{testURLFull1, testURLFull2, testURLFull4}
+	testURLsShort = []models.URLBase{testURLShort1, testURLShort2, testURLShort4}
+)
+
+// ошибки
+var (
+	errDB        = errors.New("db error")
+	errDBPrepare = errors.New("prepare failed")
 )

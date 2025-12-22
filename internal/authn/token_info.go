@@ -5,12 +5,18 @@ import (
 	"math/rand"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/oklog/ulid/v2"
 
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
+
+// GenerateSessionID - генерация уникального идентификатора сессии.
+func GenerateSessionID() string {
+	return uuid.NewString()
+}
 
 // GenerateUserID - генерация уникального идентификатора пользователя.
 func GenerateUserID() string {
@@ -20,9 +26,10 @@ func GenerateUserID() string {
 	return id
 }
 
-// GetUserID - получение идентификатора пользователя из токена.
-func GetUserID(tokenString, secretKey string) string {
+// GetClaims - получение утверждений.
+func GetClaims(tokenString, secretKey string) (*Claims, bool) {
 	claims := &Claims{}
+
 	token, err := jwt.ParseWithClaims(tokenString, claims,
 		func(t *jwt.Token) (interface{}, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -31,12 +38,11 @@ func GetUserID(tokenString, secretKey string) string {
 			return []byte(secretKey), nil
 		})
 	if err != nil {
-		return "-1"
+		return nil, false
 	}
 
 	if !token.Valid {
-		return "-1"
+		return nil, false
 	}
-
-	return claims.UserID
+	return claims, true
 }

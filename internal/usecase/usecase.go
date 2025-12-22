@@ -20,6 +20,7 @@ type URLRepository interface {
 	SelectShort(context.Context, string) (string, error)
 	SelectAll(context.Context, string) ([]models.URLBase, error)
 	Delete(context.Context, []models.URLBase) error
+	Close() error
 }
 
 // convertToSingleType - приведение к единому типу данных.

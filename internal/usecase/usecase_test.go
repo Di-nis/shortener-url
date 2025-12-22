@@ -63,89 +63,74 @@ var (
 	}
 )
 
-// TestService - тестирование сервиса.
-func TestService(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockRepository := getMocks(ctrl)
-
-	service := service.NewService()
-	useCase := NewURLUseCase(mockRepository, service)
-
-	t.Run("01_testPing", func(t *testing.T) {
-		testPing(t, useCase)
-	})
-	t.Run("02_testCreateURLOrdinary", func(t *testing.T) {
-		testCreateURLOrdinary(t, useCase)
-	})
-	t.Run("03_TestCreateURLBatch", func(t *testing.T) {
-		testCreateURLBatch(t, useCase)
-	})
-	t.Run("04_testGetOriginalURL", func(t *testing.T) {
-		testGetOriginalURL(t, useCase)
-	})
-	t.Run("05_testGetAllURLs", func(t *testing.T) {
-		testGetAllURLs(t, useCase)
-	})
-	t.Run("06_testDeleteURLs", func(t *testing.T) {
-		testDeleteURLs(t, useCase)
-	})
-}
-
-// getMocks - формирование мок.
-func getMocks(ctrl *gomock.Controller) *mocks.MockURLRepository {
-	mockRepository := mocks.NewMockURLRepository(ctrl)
-
-	mockRepository.EXPECT().Ping(gomock.Any()).Return(nil)
-	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), urlOut1).Return(nil)
-	mockRepository.EXPECT().InsertOrdinary(gomock.Any(), urlOut2).Return(constants.ErrorURLAlreadyExist)
-	mockRepository.EXPECT().InsertBatch(gomock.Any(), urlsOut).Return(nil)
-	mockRepository.EXPECT().SelectShort(gomock.Any(), urlOriginal2).Return(urlShort2, nil)
-	mockRepository.EXPECT().SelectOriginal(gomock.Any(), urlShort1).Return(urlOriginal1, nil)
-	mockRepository.EXPECT().SelectAll(gomock.Any(), UUID).Return(urlsOut, nil)
-	mockRepository.EXPECT().Delete(gomock.Any(), urlsOut).Return(nil)
-	return mockRepository
-}
-
-func testPing(t *testing.T, useCase *URLUseCase) {
+func TestURLUseCase_Ping(t *testing.T) {
 	tests := []struct {
 		name string
+		mock func(*mocks.MockURLRepository)
 		want error
 	}{
 		{
 			name: "ping - ok",
+			mock: func(mockRepo *mocks.MockURLRepository) {
+				mockRepo.EXPECT().Ping(gomock.Any()).Return(nil)
+			},
 			want: nil,
 		},
 	}
 	for _, tt := range tests {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockRepo := mocks.NewMockURLRepository(ctrl)
+		tt.mock(mockRepo)
+
+		service := service.NewService()
+		useCase := NewURLUseCase(mockRepo, service)
+
 		if got := useCase.Ping(context.Background()); got != tt.want {
 			t.Errorf("GetOrderInfo() = %v, want %v", got, tt.want)
 		}
 	}
 }
 
-func testCreateURLOrdinary(t *testing.T, useCase *URLUseCase) {
+func TestURLUseCase_CreateURLOrdinary(t *testing.T) {
 	tests := []struct {
 		name    string
 		urlIn   any
+		mock    func(*mocks.MockURLRepository)
 		want    models.URLBase
 		wantErr error
 	}{
 		{
-			name:    "создание короткого URL, кейс 1",
-			urlIn:   urlIn1,
+			name:  "создание короткого URL, кейс 1",
+			urlIn: urlIn1,
+			mock: func(mockRepo *mocks.MockURLRepository) {
+				mockRepo.EXPECT().InsertOrdinary(gomock.Any(), urlOut1).Return(nil)
+			},
 			want:    urlOut1,
 			wantErr: nil,
 		},
 		{
-			name:    "создание короткого URL, кейс 2",
-			urlIn:   urlIn2,
+			name:  "создание короткого URL, кейс 2",
+			urlIn: urlIn2,
+			mock: func(mockRepo *mocks.MockURLRepository) {
+				mockRepo.EXPECT().InsertOrdinary(gomock.Any(), urlOut2).Return(constants.ErrorURLAlreadyExist)
+				mockRepo.EXPECT().SelectShort(gomock.Any(), urlOriginal2).Return(urlShort2, nil)
+			},
 			want:    urlOut2,
 			wantErr: constants.ErrorURLAlreadyExist,
 		},
 	}
 	for _, tt := range tests {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockRepo := mocks.NewMockURLRepository(ctrl)
+		tt.mock(mockRepo)
+
+		service := service.NewService()
+		useCase := NewURLUseCase(mockRepo, service)
+
 		got, gotErr := useCase.CreateURLOrdinary(context.Background(), tt.urlIn)
 		if got != tt.want {
 			t.Errorf("CreateURLOrdinary() = %v, want %v", got, tt.want)
@@ -156,21 +141,34 @@ func testCreateURLOrdinary(t *testing.T, useCase *URLUseCase) {
 	}
 }
 
-func testCreateURLBatch(t *testing.T, useCase *URLUseCase) {
+func TestURLUseCase_CreateURLBatch(t *testing.T) {
 	tests := []struct {
 		name    string
 		urls    []models.URLBase
+		mock    func(*mocks.MockURLRepository)
 		want    []models.URLBase
 		wantErr error
 	}{
 		{
-			name:    "создание коротких URL (batch), кейс 1",
-			urls:    urlsIn,
+			name: "создание коротких URL (batch), кейс 1",
+			urls: urlsIn,
+			mock: func(mockRepo *mocks.MockURLRepository) {
+				mockRepo.EXPECT().InsertBatch(gomock.Any(), urlsOut).Return(nil)
+			},
 			want:    urlsOut,
 			wantErr: nil,
 		},
 	}
 	for _, tt := range tests {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockRepo := mocks.NewMockURLRepository(ctrl)
+		tt.mock(mockRepo)
+
+		service := service.NewService()
+		useCase := NewURLUseCase(mockRepo, service)
+
 		got, gotErr := useCase.CreateURLBatch(context.Background(), tt.urls)
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("CreateURLBatch() = %v, want %v", got, tt.want)
@@ -181,21 +179,34 @@ func testCreateURLBatch(t *testing.T, useCase *URLUseCase) {
 	}
 }
 
-func testGetOriginalURL(t *testing.T, useCase *URLUseCase) {
+func TestURLUseCase_GetOriginalURL(t *testing.T) {
 	tests := []struct {
 		name     string
 		shortURL string
+		mock     func(*mocks.MockURLRepository)
 		want     string
 		wantErr  error
 	}{
 		{
 			name:     "получение оригинального URL, кейс 1",
 			shortURL: urlShort1,
-			want:     urlOriginal1,
-			wantErr:  nil,
+			mock: func(mockRepo *mocks.MockURLRepository) {
+				mockRepo.EXPECT().SelectOriginal(gomock.Any(), urlShort1).Return(urlOriginal1, nil)
+			},
+			want:    urlOriginal1,
+			wantErr: nil,
 		},
 	}
 	for _, tt := range tests {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockRepo := mocks.NewMockURLRepository(ctrl)
+		tt.mock(mockRepo)
+
+		service := service.NewService()
+		useCase := NewURLUseCase(mockRepo, service)
+
 		got, gotErr := useCase.GetOriginalURL(context.Background(), tt.shortURL)
 		if got != tt.want {
 			t.Errorf("GetOriginalURL() = %v, want %v", got, tt.want)
@@ -207,21 +218,34 @@ func testGetOriginalURL(t *testing.T, useCase *URLUseCase) {
 	}
 }
 
-func testGetAllURLs(t *testing.T, useCase *URLUseCase) {
+func TestURLUseCase_GetAllURLs(t *testing.T) {
 	tests := []struct {
 		name    string
 		userID  string
+		mock    func(*mocks.MockURLRepository)
 		want    []models.URLBase
 		wantErr error
 	}{
 		{
-			name:    "получение всех URL пользователя, кейс 1",
-			userID:  UUID,
+			name:   "получение всех URL пользователя, кейс 1",
+			userID: UUID,
+			mock: func(mockRepo *mocks.MockURLRepository) {
+				mockRepo.EXPECT().SelectAll(gomock.Any(), UUID).Return(urlsOut, nil)
+			},
 			want:    urlsOut,
 			wantErr: nil,
 		},
 	}
 	for _, tt := range tests {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockRepo := mocks.NewMockURLRepository(ctrl)
+		tt.mock(mockRepo)
+
+		service := service.NewService()
+		useCase := NewURLUseCase(mockRepo, service)
+
 		got, gotErr := useCase.GetAllURLs(context.Background(), tt.userID)
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("GetAllURLs() = %v, want %v", got, tt.want)
@@ -233,19 +257,32 @@ func testGetAllURLs(t *testing.T, useCase *URLUseCase) {
 	}
 }
 
-func testDeleteURLs(t *testing.T, useCase *URLUseCase) {
+func TestURLUseCase_DeleteURLs(t *testing.T) {
 	tests := []struct {
 		name    string
 		urls    []models.URLBase
+		mock    func(*mocks.MockURLRepository)
 		wantErr error
 	}{
 		{
-			name:    "удаление URL, кейс 1",
-			urls:    urlsOut,
+			name: "удаление URL, кейс 1",
+			urls: urlsOut,
+			mock: func(mockRepo *mocks.MockURLRepository) {
+				mockRepo.EXPECT().Delete(gomock.Any(), urlsOut).Return(nil)
+			},
 			wantErr: nil,
 		},
 	}
 	for _, tt := range tests {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockRepo := mocks.NewMockURLRepository(ctrl)
+		tt.mock(mockRepo)
+
+		service := service.NewService()
+		useCase := NewURLUseCase(mockRepo, service)
+
 		gotErr := useCase.DeleteURLs(context.Background(), tt.urls)
 		if gotErr != tt.wantErr {
 			t.Errorf("DeleteURLs() = %v, wantErr %v", gotErr, tt.wantErr)

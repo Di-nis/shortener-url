@@ -14,7 +14,7 @@ import (
 // setupRepoFileMemory - тестирование .
 func setupRepoFileMemory(storage *Storage) *RepoFileMemory {
 	repo := NewRepoFileMemory(storage)
-	repo.URLs = append(repo.URLs, urlsTestData...)
+	repo.URLs = append(repo.URLs, testURLsFull...)
 	return repo
 }
 
@@ -58,15 +58,15 @@ func TestRepoFileMemory_InsertBatch(t *testing.T) {
 	}{
 		{
 			name: "тест 1",
-			urls: []models.URLBase{urlTestData1},
+			urls: []models.URLBase{testURLFull1},
 			mock: func(producer *mocks.MockWriteCloser) {},
 			want: constants.ErrorURLAlreadyExist,
 		},
 		{
 			name: "тест 2",
-			urls: []models.URLBase{urlTestData3},
+			urls: []models.URLBase{testURLFull3},
 			mock: func(producer *mocks.MockWriteCloser) {
-				producer.EXPECT().Write(urlTestData3).Return(nil)
+				producer.EXPECT().Write(testURLFull3).Return(nil)
 			},
 			want: nil,
 		},
@@ -103,16 +103,16 @@ func TestRepoFileMemory_InsertOrdinary(t *testing.T) {
 	}{
 		{
 			name: "тест 1",
-			url:  urlTestData1,
+			url:  testURLFull1,
 			want: constants.ErrorURLAlreadyExist,
 			mock: func(producer *mocks.MockWriteCloser) {},
 		},
 		{
 			name: "тест 2",
-			url:  urlTestData3,
+			url:  testURLFull3,
 			want: nil,
 			mock: func(producer *mocks.MockWriteCloser) {
-				producer.EXPECT().Write(urlTestData3).Return(nil)
+				producer.EXPECT().Write(testURLFull3).Return(nil)
 			},
 		},
 	}
@@ -148,19 +148,19 @@ func TestRepoFileMemory_SelectOriginal(t *testing.T) {
 	}{
 		{
 			name:     "тест 1",
-			shortURL: urlShort4,
+			shortURL: urlAlias4,
 			want:     "",
 			wantErr:  constants.ErrorURLAlreadyDeleted,
 		},
 		{
 			name:     "тест 2",
-			shortURL: urlShort1,
-			want:     urlOriginal1,
+			shortURL: urlAlias1,
+			want:     url1,
 			wantErr:  nil,
 		},
 		{
 			name:     "тест 3",
-			shortURL: urlShort3,
+			shortURL: urlAlias3,
 			want:     "",
 			wantErr:  constants.ErrorURLNotExist,
 		},
@@ -196,13 +196,13 @@ func TestRepoFileMemory_SelectShort(t *testing.T) {
 	}{
 		{
 			name:        "тест 1",
-			originalURL: urlOriginal1,
-			want:        urlShort1,
+			originalURL: url1,
+			want:        urlAlias1,
 			wantErr:     nil,
 		},
 		{
 			name:        "тест 2",
-			originalURL: urlOriginal3,
+			originalURL: url3,
 			want:        "",
 			wantErr:     constants.ErrorURLNotExist,
 		},
@@ -239,7 +239,7 @@ func TestRepoFileMemory_SelectAll(t *testing.T) {
 		{
 			name:    "тест 1",
 			userID:  UUID,
-			want:    urlsTestData,
+			want:    testURLsShort,
 			wantErr: nil,
 		},
 	}
@@ -277,7 +277,7 @@ func TestRepoFileMemory_Delete(t *testing.T) {
 	}{
 		{
 			name: "тест 1",
-			urls: []models.URLBase{urlTestData1},
+			urls: []models.URLBase{testURLFull1},
 			want: nil,
 		},
 	}

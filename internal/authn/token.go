@@ -15,11 +15,12 @@ import (
 // и одно пользовательское — UserID
 type Claims struct {
 	jwt.RegisteredClaims
+	SID    string
 	UserID string
 }
 
 // BuildJWTString создаёт токен и возвращает его в виде строки.
-func BuildJWTString(userID string, secretKey string) (string, error) {
+func BuildJWTString(secretKey, userID, sessionID string) (string, error) {
 	if userID == "" {
 		return "", errors.New("user id is empty")
 	}
@@ -28,6 +29,7 @@ func BuildJWTString(userID string, secretKey string) (string, error) {
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(constants.TokenExp)),
 		},
+		SID:    sessionID,
 		UserID: userID,
 	})
 
