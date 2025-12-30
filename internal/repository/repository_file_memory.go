@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"slices"
 
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/models"
@@ -136,4 +137,23 @@ func (repo *RepoFileMemory) Delete(ctx context.Context, urls []models.URLBase) e
 		}
 	}
 	return nil
+}
+
+// GetCountURLs - получение количества записей.
+func (repo *RepoFileMemory) GetCountURLs(ctx context.Context) (int, error) {
+	return len(repo.URLs), nil
+}
+
+// GetCountUsers - получение количества уникальных пользователей.
+func (repo *RepoFileMemory) GetCountUsers(ctx context.Context) (int, error) {
+	idx := 0
+	users := make([]string, len(repo.URLs))
+
+	for _, url := range repo.URLs {
+		if !slices.Contains(users, url.UUID) {
+			users[idx] = url.UUID
+			idx++
+		}
+	}
+	return idx, nil
 }

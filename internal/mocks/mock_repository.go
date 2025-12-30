@@ -63,6 +63,36 @@ func (mr *MockURLRepositoryMockRecorder) Delete(arg0, arg1 interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockURLRepository)(nil).Delete), arg0, arg1)
 }
 
+// GetCountURLs mocks base method.
+func (m *MockURLRepository) GetCountURLs(arg0 context.Context) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCountURLs", arg0)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCountURLs indicates an expected call of GetCountURLs.
+func (mr *MockURLRepositoryMockRecorder) GetCountURLs(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCountURLs", reflect.TypeOf((*MockURLRepository)(nil).GetCountURLs), arg0)
+}
+
+// GetCountUsers mocks base method.
+func (m *MockURLRepository) GetCountUsers(arg0 context.Context) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCountUsers", arg0)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCountUsers indicates an expected call of GetCountUsers.
+func (mr *MockURLRepositoryMockRecorder) GetCountUsers(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCountUsers", reflect.TypeOf((*MockURLRepository)(nil).GetCountUsers), arg0)
+}
+
 // InsertBatch mocks base method.
 func (m *MockURLRepository) InsertBatch(arg0 context.Context, arg1 []models.URLBase) error {
 	m.ctrl.T.Helper()

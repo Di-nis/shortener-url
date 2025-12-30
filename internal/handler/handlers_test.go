@@ -65,6 +65,11 @@ func setEnv() {
 	if err != nil {
 		log.Fatalf("set env FILE_STORAGE_PATH failed: %v", err)
 	}
+
+	err = os.Setenv("TRUSTED_SUBNET", "192.168.0.0/24")
+	if err != nil {
+		log.Fatalf("set env TRUSTED_SUBNET failed: %v", err)
+	}
 }
 
 var testServer *httptest.Server
@@ -545,7 +550,7 @@ func TestController_deleteURLs(t *testing.T) {
 	}
 }
 
-func TestController_PingDB(t *testing.T) {
+func TestController_pingDB(t *testing.T) {
 	type want struct {
 		statusCode int
 	}
@@ -571,5 +576,63 @@ func TestController_PingDB(t *testing.T) {
 		if err == nil {
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
 		}
+	}
+}
+
+func TestController_stats(t *testing.T) {
+	type want struct {
+		statusCode  int
+		body        string
+		contentType string
+	}
+
+	tests := []struct {
+		name    string
+		method  string
+		XRealIP string
+		want    want
+	}{
+		{
+			name:   "тест 1",
+			method: http.MethodPost,
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+			},
+		},
+		{
+			name:    "тест 2",
+			method:  http.MethodGet,
+			XRealIP: "192.168.0.1",
+			want: want{
+				statusCode:  http.StatusOK,
+				body:        `{"urls":0,"users":0}`,
+				contentType: "application/json",
+			},
+		},
+		{
+			name:    "тест 3",
+			method:  http.MethodGet,
+			XRealIP: "192.170.0.1",
+			want: want{
+				statusCode:  http.StatusForbidden,
+				body:        ``,
+				contentType: "",
+			},
+		},
+	}
+	for _, tt := range tests {
+		req := resty.New().R()
+		req.Method = tt.method
+		req.Header.Set("X-Real-IP", tt.XRealIP)
+
+		req.URL = testServer.URL + "/api/internal/stats"
+
+		resp, err := req.Send()
+
+		require.NoError(t, err, "error making HTTP request")
+
+		assert.Equal(t, tt.want.statusCode, resp.StatusCode(), "statusCode не соответствует ожиданиям")
+		assert.Equal(t, tt.want.body, string(resp.Body()), "тело ответа не соответствует ожиданиям")
+		assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"), "contentType не соответствует ожиданиям")
 	}
 }

@@ -27,6 +27,7 @@ type Config struct {
 	CertFilePath    string `env:"CERT_FILE_PATH"`
 	KeyFilePath     string `env:"KEY_FILE_PATH"`
 	Config          string `env:"CONFIG"`
+	TrustedSubnet   string `env:"TRUSTED_SUBNET"`
 }
 
 // NewConfig - функция для создания конфигурации.
@@ -57,9 +58,9 @@ func (c *Config) loanFromEnv() error {
 // loanFromFlags - загрузка конфигурации из аргументов командной строки.
 func (c *Config) loanFromFlags() {
 	var (
-		serverAddress, baseURL, fileStoragePath  string
-		dataBaseDSN, auditFile, auditURL, config string
-		enableHTTPS                              bool
+		serverAddress, baseURL, fileStoragePath                 string
+		dataBaseDSN, auditFile, auditURL, config, trustedSubnet string
+		enableHTTPS                                             bool
 	)
 	flag.StringVar(&serverAddress, "a", "", "URL")
 	flag.StringVar(&baseURL, "b", "", "base URL")
@@ -68,6 +69,7 @@ func (c *Config) loanFromFlags() {
 	flag.StringVar(&auditFile, "audit-file", "", "path to audit file")
 	flag.StringVar(&auditURL, "audit-url", "", "path to audit URL")
 	flag.StringVar(&config, "config", "", "path to the configuration file")
+	flag.StringVar(&trustedSubnet, "t", "", "CIDR")
 	flag.BoolVar(&enableHTTPS, "s", false, "use HTTPS web-server")
 
 	flag.Parse()
@@ -90,11 +92,14 @@ func (c *Config) loanFromFlags() {
 	if c.AuditURL == "" {
 		c.AuditURL = auditURL
 	}
-	if !c.EnableHTTPS {
-		c.EnableHTTPS = enableHTTPS
-	}
 	if c.Config == "" {
 		c.Config = config
+	}
+	if c.TrustedSubnet == "" {
+		c.TrustedSubnet = trustedSubnet
+	}
+	if !c.EnableHTTPS {
+		c.EnableHTTPS = enableHTTPS
 	}
 }
 
@@ -115,6 +120,7 @@ func (c *Config) loanFromFile() error {
 		EnableHTTPS     bool   `json:"enable_https"`
 		CertFilePath    string `json:"cert_file_path"`
 		KeyFilePath     string `json:"key_file_path"`
+		TrustedSubnet   string `json:"trusted_subnet"`
 	}
 
 	var configAlias ConfigAlias

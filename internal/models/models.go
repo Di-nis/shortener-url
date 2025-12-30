@@ -136,3 +136,17 @@ func (p *Pool[T]) Get() T {
 func (p *Pool[T]) Put(t T) {
 	p.Buf = append(p.Buf, t)
 }
+
+// Stats - модель статистики.
+type Stats struct {
+	CountURL   int `json:"urls"`
+	CountUsers int `json:"users"`
+}
+
+// NewStats - конструктор модели статистики.
+func NewStats(countURLs, countUsers int) *Stats {
+	return &Stats{
+		CountURL:   countURLs,
+		CountUsers: countUsers,
+	}
+}

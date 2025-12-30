@@ -4,7 +4,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os/signal"
 	"syscall"
@@ -22,7 +21,7 @@ func Run() error {
 	defer stop()
 
 	if err := godotenv.Load(); err != nil {
-		return fmt.Errorf("path: internal/config/config.go, func loanFromEnv(), failed to load env: %w", err)
+		logger.Sugar.Infof("path: internal/config/config.go, func loanFromEnv(), failed to load env: %w", err)
 	}
 
 	cfg, err := initConfigAndLogger()
