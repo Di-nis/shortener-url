@@ -4,12 +4,12 @@ package app
 
 import (
 	"context"
-	"net/http"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/Di-nis/shortener-url/internal/logger"
+	grpcServer "github.com/Di-nis/shortener-url/internal/server/grpc"
+	httpServer "github.com/Di-nis/shortener-url/internal/server/http"
 	"github.com/Di-nis/shortener-url/internal/service"
 
 	"github.com/joho/godotenv"
@@ -35,37 +35,11 @@ func Run() error {
 	}
 
 	svc := service.NewService()
-	routerHandler := setupRouter(cfg, repo, svc)
 
-	httpServer := &http.Server{
-		Addr:    cfg.ServerAddress,
-		Handler: routerHandler,
+	// gRPC-сервер
+	if cfg.EnableGRPC {
+		return grpcServer.Run(ctx, cfg, repo, svc)
 	}
-
-	go func() {
-		if cfg.EnableHTTPS {
-			if err = httpServer.ListenAndServeTLS(cfg.CertFilePath, cfg.KeyFilePath); err != nil && err != http.ErrServerClosed {
-				logger.Sugar.Fatalf("failed start TLS-server: %w", err)
-			}
-		}
-		if err = httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Sugar.Fatalf("failed start server: %w", err)
-		}
-	}()
-
-	<-ctx.Done()
-
-	shutDownCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	go func() {
-		if err := httpServer.Shutdown(context.Background()); err != nil {
-			logger.Sugar.Errorf("Ошибка graceful shutdown: %w", err)
-		}
-		if err = repo.Close(); err != nil {
-			logger.Sugar.Errorf("Ошибка закрытия базы данных: %w", err)
-		}
-	}()
-	<-shutDownCtx.Done()
-	return nil
+	// HTTP-сервер
+	return httpServer.Run(ctx, cfg, repo, svc)
 }

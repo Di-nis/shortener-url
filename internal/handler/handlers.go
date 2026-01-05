@@ -104,7 +104,7 @@ func (c *Controller) UseAuthMiddleware(router *chi.Mux) {
 	if c.Config.UseMockAuth {
 		router.Use(authn.MockAuthMiddleware)
 	} else {
-		router.Use(authn.AuthMiddleware)
+		router.Use(authn.Middleware)
 	}
 }
 
@@ -316,9 +316,7 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 	for _, url := range urls {
 		urlOut = models.URLGetAll(url)
 		urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
-		urlsOut = append(urlsOut,
-
-			urlOut)
+		urlsOut = append(urlsOut, urlOut)
 	}
 
 	if len(urlsOut) == 0 {
