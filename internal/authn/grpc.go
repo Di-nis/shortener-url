@@ -14,7 +14,7 @@ import (
 
 const headerAuthorization = "authorization"
 
-// Interceptor - аутентификация пользователя..
+// Interceptor - аутентификация пользователя.
 func Interceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	var (
 		token, userID, sessionID string

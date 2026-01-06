@@ -23,18 +23,42 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+// AddBaseURLToResponse - добавление базового URL к ответу.
+func AddBaseURLToResponse(baseURL string, urlShort string) string {
+	return fmt.Sprintf("%s/%s", baseURL, urlShort)
+}
+
+// URLCreator - интерфейс, включащий методы по созданию URL.
+type URLCreator interface {
+	CreateURLOrdinary(context.Context, any) (models.URLBase, error)
+}
+
+// URLReader - интерфейс, включащий методы по получению URL.
+type URLReader interface {
+	GetOriginalURL(context.Context, string) (string, error)
+	GetAllURLs(context.Context, string) ([]models.URLBase, error)
+}
+
+// URLUseCase - объединенный интерфейс.
+type URLUseCase interface {
+	URLCreator
+	URLReader
+}
+
 // ShortenerServiceServer поддерживает все необходимые методы сервера.
 type ShortenerServiceServer struct {
 	pb.UnimplementedShortenerServiceServer
-	UseCase *usecase.URLUseCase
-	Config  *config.Config
+	URLCreator URLCreator
+	URLReader  URLReader
+	Config     *config.Config
 }
 
 // NewShortenerServiceServer - создание нового сервера.
-func NewShortenerServiceServer(useCase *usecase.URLUseCase, config *config.Config) *ShortenerServiceServer {
+func NewShortenerServiceServer(useCase URLUseCase, config *config.Config) *ShortenerServiceServer {
 	return &ShortenerServiceServer{
-		UseCase: useCase,
-		Config:  config,
+		URLCreator: useCase,
+		URLReader:  useCase,
+		Config:     config,
 	}
 }
 
@@ -49,14 +73,15 @@ func (s *ShortenerServiceServer) ShortenURL(ctx context.Context, in *pb.URLShort
 		Original: urlOriginal,
 	}
 
-	urlOut, err := s.UseCase.CreateURLOrdinary(ctx, urlIn)
+	urlOut, err := s.URLCreator.CreateURLOrdinary(ctx, urlIn)
 	if err != nil {
 		if errors.Is(err, constants.ErrorURLAlreadyExist) {
 			return nil, status.Errorf(codes.AlreadyExists, `URL %s already exist`, urlOriginal)
 		}
 		return nil, status.Error(codes.Internal, "internal error")
 	}
-	urlOut.Short = fmt.Sprintf("%s/%s", s.Config.BaseURL, urlOut.Short)
+
+	urlOut.Short = AddBaseURLToResponse(s.Config.BaseURL, urlOut.Short)
 
 	response.SetResult(urlOut.Short)
 
@@ -67,13 +92,13 @@ func (s *ShortenerServiceServer) ShortenURL(ctx context.Context, in *pb.URLShort
 func (s *ShortenerServiceServer) ExpandURL(ctx context.Context, in *pb.URLExpandRequest) (*pb.URLExpandResponse, error) {
 	var response pb.URLExpandResponse
 
-	urlOriginal, err := s.UseCase.GetOriginalURL(ctx, in.GetId())
+	urlOriginal, err := s.URLReader.GetOriginalURL(ctx, in.GetId())
 	if err != nil {
 		if errors.Is(err, constants.ErrorURLNotExist) {
 			return nil, status.Errorf(codes.NotFound, `URL %s not found`, in.GetId())
 		}
 		if errors.Is(err, constants.ErrorURLAlreadyDeleted) {
-			return nil, status.Errorf(codes.NotFound, `URL %s not found`, in.GetId())
+			return nil, status.Errorf(codes.NotFound, `URL %s already deleted`, in.GetId())
 		}
 		return nil, status.Error(codes.Unavailable, "server unavailable")
 	}
@@ -84,19 +109,19 @@ func (s *ShortenerServiceServer) ExpandURL(ctx context.Context, in *pb.URLExpand
 }
 
 // ListUserURLs - получение списка всех коротких URL пользователя.
-func (s *ShortenerServiceServer) ListUserURLs(ctx context.Context, in *emptypb.Empty) (*pb.UserURLsResponse, error) {
+func (s *ShortenerServiceServer) ListUserURLs(ctx context.Context, _ *emptypb.Empty) (*pb.UserURLsResponse, error) {
 	var response pb.UserURLsResponse
 
 	userID := ctx.Value(constants.UserIDKey).(string)
 
-	urls, err := s.UseCase.GetAllURLs(ctx, userID)
+	urls, err := s.URLReader.GetAllURLs(ctx, userID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 
 	var urlsOut []*pb.URLData
 	for _, url := range urls {
-		shortURL := fmt.Sprintf("%s/%s", s.Config.BaseURL, url.Short)
+		shortURL := AddBaseURLToResponse(s.Config.BaseURL, url.Short)
 		urlOut := pb.URLData_builder{
 			ShortUrl:    &shortURL,
 			OriginalUrl: &url.Original,

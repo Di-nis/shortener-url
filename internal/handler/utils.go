@@ -11,7 +11,6 @@ import (
 // addBaseURLToResponse - добавление базового URL к ответу.
 func addBaseURLToResponse(baseURL string, urlShort string) string {
 	return fmt.Sprintf("%s/%s", baseURL, urlShort)
-
 }
 
 // writeStatusCreate - запись статус-кода в ответ для функций создания url.
