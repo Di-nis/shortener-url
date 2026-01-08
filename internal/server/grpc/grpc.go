@@ -3,7 +3,6 @@ package grpcserver
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"os"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/Di-nis/shortener-url/internal/models"
 	pb "github.com/Di-nis/shortener-url/internal/proto"
 	"github.com/Di-nis/shortener-url/internal/service"
+	"github.com/Di-nis/shortener-url/internal/toolkit"
 	"github.com/Di-nis/shortener-url/internal/usecase"
 
 	"google.golang.org/grpc"
@@ -22,11 +22,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
-
-// AddBaseURLToResponse - добавление базового URL к ответу.
-func AddBaseURLToResponse(baseURL string, urlShort string) string {
-	return fmt.Sprintf("%s/%s", baseURL, urlShort)
-}
 
 // URLCreator - интерфейс, включащий методы по созданию URL.
 type URLCreator interface {
@@ -81,7 +76,7 @@ func (s *ShortenerServiceServer) ShortenURL(ctx context.Context, in *pb.URLShort
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 
-	urlOut.Short = AddBaseURLToResponse(s.Config.BaseURL, urlOut.Short)
+	urlOut.Short = toolkit.AddBaseURLToResponse(s.Config.BaseURL, urlOut.Short)
 
 	response.SetResult(urlOut.Short)
 
@@ -121,7 +116,7 @@ func (s *ShortenerServiceServer) ListUserURLs(ctx context.Context, _ *emptypb.Em
 
 	var urlsOut []*pb.URLData
 	for _, url := range urls {
-		shortURL := AddBaseURLToResponse(s.Config.BaseURL, url.Short)
+		shortURL := toolkit.AddBaseURLToResponse(s.Config.BaseURL, url.Short)
 		urlOut := pb.URLData_builder{
 			ShortUrl:    &shortURL,
 			OriginalUrl: &url.Original,

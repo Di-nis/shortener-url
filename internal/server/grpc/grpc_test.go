@@ -13,6 +13,7 @@ import (
 	"github.com/Di-nis/shortener-url/internal/models"
 	pb "github.com/Di-nis/shortener-url/internal/proto"
 	grpcserver "github.com/Di-nis/shortener-url/internal/server/grpc"
+	"github.com/Di-nis/shortener-url/internal/toolkit"
 	"github.com/golang/mock/gomock"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -97,7 +98,7 @@ func newTestService(t *testing.T) (*grpcserver.ShortenerServiceServer, *mocks.Mo
 }
 
 func TestShortenerServiceServer_ShortenURL(t *testing.T) {
-	fullUrlShort1 := grpcserver.AddBaseURLToResponse(cfg.BaseURL, urlShort1)
+	fullUrlShort1 := toolkit.AddBaseURLToResponse(cfg.BaseURL, urlShort1)
 
 	tests := []struct {
 		name    string
@@ -224,8 +225,8 @@ func TestShortenerServiceServer_ExpandURL(t *testing.T) {
 }
 
 func TestShortenerServiceServer_ListUserURLs(t *testing.T) {
-	fullUrlShort1 := grpcserver.AddBaseURLToResponse(cfg.BaseURL, urlShort1)
-	fullUrlShort2 := grpcserver.AddBaseURLToResponse(cfg.BaseURL, urlShort2)
+	fullUrlShort1 := toolkit.AddBaseURLToResponse(cfg.BaseURL, urlShort1)
+	fullUrlShort2 := toolkit.AddBaseURLToResponse(cfg.BaseURL, urlShort2)
 
 	tests := []struct {
 		name    string

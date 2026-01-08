@@ -18,6 +18,7 @@ import (
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/logger"
 	"github.com/Di-nis/shortener-url/internal/models"
+	"github.com/Di-nis/shortener-url/internal/toolkit"
 
 	"github.com/go-chi/chi/v5"
 
@@ -177,7 +178,7 @@ func (c *Controller) CreateURLShortJSONBatch(res http.ResponseWriter, req *http.
 
 	// Добавление базового URL
 	for i := range createdURLs {
-		createdURLs[i].Short = addBaseURLToResponse(c.Config.BaseURL, createdURLs[i].Short)
+		createdURLs[i].Short = toolkit.AddBaseURLToResponse(c.Config.BaseURL, createdURLs[i].Short)
 	}
 
 	bodyResult, marshalErr := json.Marshal(createdURLs)
@@ -230,7 +231,7 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 
 	url, err := c.URLCreator.CreateURLOrdinary(ctx, urlInOut)
 
-	url.Short = addBaseURLToResponse(c.Config.BaseURL, url.Short)
+	url.Short = toolkit.AddBaseURLToResponse(c.Config.BaseURL, url.Short)
 	urlInOut = models.URLJSON(url)
 
 	bodyResult, marshalErr := json.Marshal(urlInOut)
@@ -276,7 +277,7 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 
 	urlOut, err := c.URLCreator.CreateURLOrdinary(ctx, urlIn)
 
-	urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
+	urlOut.Short = toolkit.AddBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 
 	res.Header().Set("Content-Type", "text/plain")
 	writeStatusCreate(res, err)
@@ -315,7 +316,7 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 
 	for _, url := range urls {
 		urlOut = models.URLGetAll(url)
-		urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
+		urlOut.Short = toolkit.AddBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 		urlsOut = append(urlsOut, urlOut)
 	}
 
