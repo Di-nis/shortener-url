@@ -137,7 +137,7 @@ func Run(ctx context.Context, config *config.Config, repo usecase.URLRepository,
 		os.Exit(1)
 	}
 
-	server := grpc.NewServer(grpc.UnaryInterceptor(authn.Interceptor))
+	server := grpc.NewServer(grpc.UnaryInterceptor(authn.Interceptor(config.JWTSecret)))
 
 	useCase := usecase.NewURLUseCase(repo, svc)
 	pb.RegisterShortenerServiceServer(server, NewShortenerServiceServer(useCase, config))
