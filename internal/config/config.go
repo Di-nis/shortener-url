@@ -28,6 +28,7 @@ type Config struct {
 	KeyFilePath     string `env:"KEY_FILE_PATH"`
 	Config          string `env:"CONFIG"`
 	TrustedSubnet   string `env:"TRUSTED_SUBNET"`
+	UseHeader       bool   `env:"USE_HEADER"`
 	EnableGRPC      bool   `env:"ENABLE_GRPC"`
 }
 
@@ -61,7 +62,7 @@ func (c *Config) loanFromFlags() {
 	var (
 		serverAddress, baseURL, fileStoragePath                 string
 		dataBaseDSN, auditFile, auditURL, config, trustedSubnet string
-		enableHTTPS, enableGRPC                                 bool
+		enableHTTPS, enableGRPC, useHeader                      bool
 	)
 	flag.StringVar(&serverAddress, "a", "", "URL")
 	flag.StringVar(&baseURL, "b", "", "base URL")
@@ -72,6 +73,7 @@ func (c *Config) loanFromFlags() {
 	flag.StringVar(&config, "config", "", "path to the configuration file")
 	flag.StringVar(&trustedSubnet, "t", "", "CIDR")
 	flag.BoolVar(&enableHTTPS, "s", false, "use HTTPS web-server")
+	flag.BoolVar(&useHeader, "use-header", false, "using a header when parsing an IP address")
 	flag.BoolVar(&enableGRPC, "grpc", false, "use gRPC server")
 
 	flag.Parse()
@@ -103,6 +105,9 @@ func (c *Config) loanFromFlags() {
 	if !c.EnableHTTPS {
 		c.EnableHTTPS = enableHTTPS
 	}
+	if !c.UseHeader {
+		c.UseHeader = useHeader
+	}
 	if !c.EnableGRPC {
 		c.EnableGRPC = enableGRPC
 	}
@@ -126,6 +131,7 @@ func (c *Config) loanFromFile() error {
 		CertFilePath    string `json:"cert_file_path"`
 		KeyFilePath     string `json:"key_file_path"`
 		TrustedSubnet   string `json:"trusted_subnet"`
+		UseHeader       bool   `json:"use_header"`
 		EnableGRPC      bool   `json:"enable_gRPC"`
 	}
 
@@ -184,6 +190,10 @@ func (c *Config) loanFromFile() error {
 
 	if c.KeyFilePath == "" {
 		c.KeyFilePath = configAlias.KeyFilePath
+	}
+
+	if !c.UseHeader {
+		c.UseHeader = configAlias.UseHeader
 	}
 
 	if !c.EnableGRPC {

@@ -116,7 +116,7 @@ func (c *Controller) RegisterRoutes(router *chi.Mux) {
 	router.Get("/ping", c.pingDB)
 
 	router.Group(func(r chi.Router) {
-		r.Use(cidr.WithCheckCIDR(c.Config.TrustedSubnet))
+		r.Use(cidr.WithCheckCIDR(c.Config.TrustedSubnet, c.Config.UseHeader))
 
 		r.Get("/api/internal/stats", c.stats)
 	})
