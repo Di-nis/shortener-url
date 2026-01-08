@@ -2,14 +2,11 @@ package app
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/Di-nis/shortener-url/internal/config"
-	"github.com/Di-nis/shortener-url/internal/handler"
 	"github.com/Di-nis/shortener-url/internal/logger"
 	"github.com/Di-nis/shortener-url/internal/models"
 	"github.com/Di-nis/shortener-url/internal/repository"
-	"github.com/Di-nis/shortener-url/internal/service"
 	"github.com/Di-nis/shortener-url/internal/storage"
 	"github.com/Di-nis/shortener-url/internal/usecase"
 
@@ -101,12 +98,4 @@ func initStorage(cfg *config.Config) (usecase.URLRepository, error) {
 		return InitRepoFile(cfg.FileStoragePath)
 	}
 	return InitRepoMemory(cfg)
-}
-
-// setupRouter - настройка маршрутизатора.
-func setupRouter(cfg *config.Config, repo usecase.URLRepository, svc *service.Service) http.Handler {
-	urlUseCase := usecase.NewURLUseCase(repo, svc)
-
-	controller := handler.NewСontroller(urlUseCase, cfg)
-	return controller.SetupRouter()
 }

@@ -210,3 +210,29 @@ func (repo *RepoPostgres) Delete(ctx context.Context, urls []models.URLBase) err
 	}
 	return nil
 }
+
+// GetCountURLs - получение количества записей.
+func (repo *RepoPostgres) GetCountURLs(ctx context.Context) (int, error) {
+	query := `SELECT COUNT(*) FROM urls`
+	row := repo.db.QueryRowContext(ctx, query)
+
+	var count int
+	err := row.Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("path: internal/repository/postgres_repository.go, func GetCountURLs(): %w", err)
+	}
+	return count, nil
+}
+
+// GetCountUsers - получение количества уникальных пользователей.
+func (repo *RepoPostgres) GetCountUsers(ctx context.Context) (int, error) {
+	query := "SELECT COUNT(DISTINCT user_id) FROM urls"
+	row := repo.db.QueryRowContext(ctx, query)
+
+	var count int
+	err := row.Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("path: internal/repository/postgres_repository.go, func GetCountUsers(): %w", err)
+	}
+	return count, nil
+}

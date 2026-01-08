@@ -20,6 +20,8 @@ type URLRepository interface {
 	SelectShort(context.Context, string) (string, error)
 	SelectAll(context.Context, string) ([]models.URLBase, error)
 	Delete(context.Context, []models.URLBase) error
+	GetCountURLs(context.Context) (int, error)
+	GetCountUsers(context.Context) (int, error)
 	Close() error
 }
 
@@ -187,4 +189,19 @@ func (urlUseCase *URLUseCase) DeleteURLs(ctx context.Context, urls []models.URLB
 	}
 	return firstErr
 
+}
+
+// GetStats - получение статистики по записям и пользователям.
+func (urlUseCase *URLUseCase) GetStats(ctx context.Context) (int, int, error) {
+	countURLs, err := urlUseCase.Repo.GetCountURLs(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	countUsers, err := urlUseCase.Repo.GetCountUsers(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return countURLs, countUsers, nil
 }

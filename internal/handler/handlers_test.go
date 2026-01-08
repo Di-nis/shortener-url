@@ -20,10 +20,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func initHandler() (http.Handler, error) {
-	cfg := config.NewConfig()
-	cfg.Load()
+func cleanDataBase() {
+	path := os.Getenv("FILE_STORAGE_PATH")
+	f, err := os.OpenFile(path, os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalf("failed to clear file: %v", err)
+	}
+	f.Close()
+}
 
+func initHandler(cfg *config.Config) (http.Handler, error) {
 	consumer, err := storage.NewConsumer(cfg.FileStoragePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init consumer: %w", err)
@@ -65,6 +71,11 @@ func setEnv() {
 	if err != nil {
 		log.Fatalf("set env FILE_STORAGE_PATH failed: %v", err)
 	}
+
+	err = os.Setenv("TRUSTED_SUBNET", "192.168.0.0/24")
+	if err != nil {
+		log.Fatalf("set env TRUSTED_SUBNET failed: %v", err)
+	}
 }
 
 var testServer *httptest.Server
@@ -72,12 +83,17 @@ var testServer *httptest.Server
 func TestMain(m *testing.M) {
 	setEnv()
 
-	handler, err := initHandler()
+	cfg := config.NewConfig()
+	cfg.Load()
+
+	handler, err := initHandler(cfg)
 	if err != nil {
 		log.Fatalf("init handler failed: %v", err)
 	}
 	testServer = httptest.NewServer(handler)
 	defer testServer.Close()
+
+	cleanDataBase()
 
 	os.Exit(m.Run())
 }
@@ -130,6 +146,7 @@ func TestController_CreateURLShortJSONBatch(t *testing.T) {
 			})
 
 			resp, err := req.Send()
+
 			require.NoError(t, err, "error making HTTP request", tt.body)
 
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
@@ -211,6 +228,7 @@ func TestController_CreateURLFromText(t *testing.T) {
 			})
 
 			resp, err := req.Send()
+
 			require.NoError(t, err, "error making HTTP request", tt.body)
 
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
@@ -291,14 +309,13 @@ func TestController_CreateURLFromJSON(t *testing.T) {
 			req := resty.New().R()
 			req.Method = tt.method
 			req.URL = testServer.URL + "/api/shorten"
-			req.Header.Set("Content-Type",
-
-				tt.contentType)
+			req.Header.Set("Content-Type", tt.contentType)
 			req.Header.Set("Content-Encoding", tt.contentEncoding)
 			req.Header.Set("Accept-Encoding", tt.acceptEncoding)
 			req.Body = tt.body
 
 			resp, err := req.Send()
+
 			require.NoError(t, err, "error making HTTP request")
 
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
@@ -545,7 +562,7 @@ func TestController_deleteURLs(t *testing.T) {
 	}
 }
 
-func TestController_PingDB(t *testing.T) {
+func TestController_pingDB(t *testing.T) {
 	type want struct {
 		statusCode int
 	}
@@ -571,5 +588,63 @@ func TestController_PingDB(t *testing.T) {
 		if err == nil {
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode())
 		}
+	}
+}
+
+func TestController_stats(t *testing.T) {
+	type want struct {
+		statusCode  int
+		body        string
+		contentType string
+	}
+
+	tests := []struct {
+		name    string
+		method  string
+		XRealIP string
+		want    want
+	}{
+		{
+			name:   "тест 1",
+			method: http.MethodPost,
+			want: want{
+				statusCode: http.StatusMethodNotAllowed,
+			},
+		},
+		{
+			name:    "тест 2",
+			method:  http.MethodGet,
+			XRealIP: "192.168.0.1",
+			want: want{
+				statusCode:  http.StatusOK,
+				body:        `{"urls":0,"users":0}`,
+				contentType: "application/json",
+			},
+		},
+		{
+			name:    "тест 3",
+			method:  http.MethodGet,
+			XRealIP: "192.170.0.1",
+			want: want{
+				statusCode:  http.StatusForbidden,
+				body:        ``,
+				contentType: "",
+			},
+		},
+	}
+	for _, tt := range tests {
+		req := resty.New().R()
+		req.Method = tt.method
+		req.Header.Set("X-Real-IP", tt.XRealIP)
+
+		req.URL = testServer.URL + "/api/internal/stats"
+
+		resp, err := req.Send()
+
+		require.NoError(t, err, "error making HTTP request")
+
+		assert.Equal(t, tt.want.statusCode, resp.StatusCode(), "statusCode не соответствует ожиданиям")
+		// assert.Equal(t, tt.want.body, string(resp.Body()), "тело ответа не соответствует ожиданиям")
+		assert.Equal(t, tt.want.contentType, resp.Header().Get("Content-Type"), "contentType не соответствует ожиданиям")
 	}
 }

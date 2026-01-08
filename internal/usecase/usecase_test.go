@@ -290,6 +290,50 @@ func TestURLUseCase_DeleteURLs(t *testing.T) {
 	}
 }
 
+func TestURLUseCase_GetStats(t *testing.T) {
+	URLs, users := 100, 10
+
+	tests := []struct {
+		name      string
+		mock      func(*mocks.MockURLRepository)
+		wantURLs  int
+		wantUsers int
+		wantErr   error
+	}{
+		{
+			name: "кейс 1",
+			mock: func(mockRepo *mocks.MockURLRepository) {
+				mockRepo.EXPECT().GetCountURLs(gomock.Any()).Return(URLs, nil)
+				mockRepo.EXPECT().GetCountUsers(gomock.Any()).Return(users, nil)
+			},
+			wantURLs:  URLs,
+			wantUsers: users,
+			wantErr:   nil,
+		},
+	}
+	for _, tt := range tests {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockRepo := mocks.NewMockURLRepository(ctrl)
+		tt.mock(mockRepo)
+
+		service := service.NewService()
+		useCase := NewURLUseCase(mockRepo, service)
+
+		gotCountURLs, gotCountUsers, GotErr := useCase.GetStats(context.Background())
+		if gotCountURLs != tt.wantURLs {
+			t.Errorf("TestURLUseCase_GetStats() = %v, wantURLs %v", gotCountURLs, tt.wantURLs)
+		}
+		if gotCountUsers != tt.wantUsers {
+			t.Errorf("TestURLUseCase_GetStats() = %v, wantUsers %v", gotCountUsers, tt.wantUsers)
+		}
+		if GotErr != tt.wantErr {
+			t.Errorf("TestURLUseCase_GetStats() = %v, wantUsers %v", GotErr, tt.wantErr)
+		}
+	}
+}
+
 func BenchmarkService(b *testing.B) {
 	ctrl := gomock.NewController(b)
 	defer ctrl.Finish()

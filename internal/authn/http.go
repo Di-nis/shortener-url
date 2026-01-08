@@ -13,8 +13,8 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// AuthMiddleware - аутентификация пользователя.
-func AuthMiddleware(next http.Handler) http.Handler {
+// Middleware - аутентификация пользователя.
+func Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		var userID, tokenString, sessionID string
 

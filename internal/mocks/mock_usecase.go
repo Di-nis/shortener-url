@@ -109,6 +109,22 @@ func (mr *MockURLUseCaseMockRecorder) GetOriginalURL(arg0, arg1 interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOriginalURL", reflect.TypeOf((*MockURLUseCase)(nil).GetOriginalURL), arg0, arg1)
 }
 
+// GetStats mocks base method.
+func (m *MockURLUseCase) GetStats(arg0 context.Context) (int, int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStats", arg0)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(int)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetStats indicates an expected call of GetStats.
+func (mr *MockURLUseCaseMockRecorder) GetStats(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStats", reflect.TypeOf((*MockURLUseCase)(nil).GetStats), arg0)
+}
+
 // Ping mocks base method.
 func (m *MockURLUseCase) Ping(arg0 context.Context) error {
 	m.ctrl.T.Helper()

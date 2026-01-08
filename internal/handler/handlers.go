@@ -12,11 +12,13 @@ import (
 
 	"github.com/Di-nis/shortener-url/internal/audit"
 	"github.com/Di-nis/shortener-url/internal/authn"
+	"github.com/Di-nis/shortener-url/internal/cidr"
 	"github.com/Di-nis/shortener-url/internal/compress"
 	"github.com/Di-nis/shortener-url/internal/config"
 	"github.com/Di-nis/shortener-url/internal/constants"
 	"github.com/Di-nis/shortener-url/internal/logger"
 	"github.com/Di-nis/shortener-url/internal/models"
+	"github.com/Di-nis/shortener-url/internal/toolkit"
 
 	"github.com/go-chi/chi/v5"
 
@@ -48,12 +50,18 @@ type URLDeleter interface {
 	DeleteURLs(context.Context, []models.URLBase) error
 }
 
+// URLStats - интерфейс, включающий методы по получению статистики.
+type URLStats interface {
+	GetStats(context.Context) (int, int, error)
+}
+
 // URLUseCase - объединенный интерфейс.
 type URLUseCase interface {
 	Pinger
 	URLCreator
 	URLReader
 	URLDeleter
+	URLStats
 }
 
 // Controller - структура HTTP-хендлера.
@@ -62,6 +70,7 @@ type Controller struct {
 	URLCreator URLCreator
 	URLReader  URLReader
 	URLDeleter URLDeleter
+	URLStats   URLStats
 
 	Config *config.Config
 	Client *audit.Client
@@ -74,6 +83,7 @@ func NewСontroller(urlUseCase URLUseCase, config *config.Config) *Controller {
 		URLCreator: urlUseCase,
 		URLReader:  urlUseCase,
 		URLDeleter: urlUseCase,
+		URLStats:   urlUseCase,
 		Config:     config,
 		Client:     audit.NewClient(&http.Client{}, config.AuditURL),
 	}
@@ -95,7 +105,7 @@ func (c *Controller) UseAuthMiddleware(router *chi.Mux) {
 	if c.Config.UseMockAuth {
 		router.Use(authn.MockAuthMiddleware)
 	} else {
-		router.Use(authn.AuthMiddleware)
+		router.Use(authn.Middleware)
 	}
 }
 
@@ -105,6 +115,12 @@ func (c *Controller) RegisterRoutes(router *chi.Mux) {
 	router.Get("/api/user/urls", c.getAllURLs)
 	router.Delete("/api/user/urls", c.deleteURLs)
 	router.Get("/ping", c.pingDB)
+
+	router.Group(func(r chi.Router) {
+		r.Use(cidr.WithCheckCIDR(c.Config.TrustedSubnet, c.Config.UseHeader))
+
+		r.Get("/api/internal/stats", c.stats)
+	})
 
 	router.Group(func(r chi.Router) {
 		r.Use(audit.WithAudit(c.Client, c.Config.AuditFile))
@@ -162,7 +178,7 @@ func (c *Controller) CreateURLShortJSONBatch(res http.ResponseWriter, req *http.
 
 	// Добавление базового URL
 	for i := range createdURLs {
-		createdURLs[i].Short = addBaseURLToResponse(c.Config.BaseURL, createdURLs[i].Short)
+		createdURLs[i].Short = toolkit.AddBaseURLToResponse(c.Config.BaseURL, createdURLs[i].Short)
 	}
 
 	bodyResult, marshalErr := json.Marshal(createdURLs)
@@ -215,12 +231,12 @@ func (c *Controller) createURLShortJSON(res http.ResponseWriter, req *http.Reque
 
 	url, err := c.URLCreator.CreateURLOrdinary(ctx, urlInOut)
 
-	url.Short = addBaseURLToResponse(c.Config.BaseURL, url.Short)
+	url.Short = toolkit.AddBaseURLToResponse(c.Config.BaseURL, url.Short)
 	urlInOut = models.URLJSON(url)
 
 	bodyResult, marshalErr := json.Marshal(urlInOut)
 	if marshalErr != nil {
-		http.Error(res, err.Error(), http.StatusInternalServerError)
+		http.Error(res, constants.InvalidJSONError, http.StatusInternalServerError)
 		return
 	}
 
@@ -261,7 +277,7 @@ func (c *Controller) createURLShortText(res http.ResponseWriter, req *http.Reque
 
 	urlOut, err := c.URLCreator.CreateURLOrdinary(ctx, urlIn)
 
-	urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
+	urlOut.Short = toolkit.AddBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
 
 	res.Header().Set("Content-Type", "text/plain")
 	writeStatusCreate(res, err)
@@ -300,10 +316,8 @@ func (c *Controller) getAllURLs(res http.ResponseWriter, req *http.Request) {
 
 	for _, url := range urls {
 		urlOut = models.URLGetAll(url)
-		urlOut.Short = addBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
-		urlsOut = append(urlsOut,
-
-			urlOut)
+		urlOut.Short = toolkit.AddBaseURLToResponse(c.Config.BaseURL, urlOut.Short)
+		urlsOut = append(urlsOut, urlOut)
 	}
 
 	if len(urlsOut) == 0 {
@@ -404,4 +418,37 @@ func (c *Controller) pingDB(res http.ResponseWriter, req *http.Request) {
 
 	err := c.Pinger.Ping(ctx)
 	writeStatusCodePing(res, err)
+}
+
+// stats - получение статистики по сокращенным URL.
+func (c *Controller) stats(res http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if req.Method != http.MethodGet {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	countURLs, countUsers, err := c.URLStats.GetStats(ctx)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	stats := models.NewStats(countURLs, countUsers)
+
+	bodyResult, err := json.Marshal(stats)
+	if err != nil {
+		http.Error(res, constants.InvalidJSONError, http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+
+	_, err = res.Write([]byte(bodyResult))
+	if err != nil {
+		http.Error(res, constants.WriteResponseError, http.StatusInternalServerError)
+	}
 }

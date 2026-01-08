@@ -437,3 +437,85 @@ func TestRepoPostgres_Delete(t *testing.T) {
 		})
 	}
 }
+
+func TestRepoPostgres_GetCountURLs(t *testing.T) {
+	tests := []struct {
+		name    string
+		dbRow   int
+		dbErr   error
+		want    int
+		wantErr error
+	}{
+		{
+			name:    "тест 1",
+			dbRow:   100,
+			dbErr:   nil,
+			want:    100,
+			wantErr: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Skipf("an error '%s' was not expected when opening a stub database connection", err)
+			}
+			defer db.Close()
+
+			mock.ExpectQuery(regexp.QuoteMeta(`SELECT COUNT(*) FROM urls`)).
+				WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(tt.dbRow)).
+				WillReturnError(tt.dbErr)
+
+			repo := RepoPostgres{db: db}
+
+			got, gotErr := repo.GetCountURLs(context.Background())
+			if got != tt.want {
+				t.Errorf("TestRepoPostgres_GetCountURLs() = %v, want: %v", got, tt.want)
+			}
+			if !errors.Is(gotErr, tt.wantErr) {
+				t.Errorf("TestRepoPostgres_GetCountURLs() = %v, wantErr: %v", gotErr, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestRepoPostgres_GetCountUsers(t *testing.T) {
+	tests := []struct {
+		name    string
+		dbRow   int
+		dbErr   error
+		want    int
+		wantErr error
+	}{
+		{
+			name:    "тест 1",
+			dbRow:   10,
+			dbErr:   nil,
+			want:    10,
+			wantErr: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Skipf("an error '%s' was not expected when opening a stub database connection", err)
+			}
+			defer db.Close()
+
+			mock.ExpectQuery(regexp.QuoteMeta(`SELECT COUNT(DISTINCT user_id) FROM urls`)).
+				WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(tt.dbRow)).
+				WillReturnError(tt.dbErr)
+
+			repo := RepoPostgres{db: db}
+
+			got, gotErr := repo.GetCountUsers(context.Background())
+			if got != tt.want {
+				t.Errorf("TestRepoPostgres_GetCountUsers() = %v, want: %v", got, tt.want)
+			}
+			if !errors.Is(gotErr, tt.wantErr) {
+				t.Errorf("TestRepoPostgres_GetCountUsers() = %v, wantErr: %v", gotErr, tt.wantErr)
+			}
+		})
+	}
+}
